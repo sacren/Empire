@@ -16,19 +16,28 @@
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
+
+                <flux:sidebar.group :heading="__('Enrollment')" class="grid">
+                    <flux:sidebar.item icon="users" :href="route('prospects.index')" :current="request()->routeIs('prospects.*')" wire:navigate>
+                        {{ __('Prospects') }}
+                    </flux:sidebar.item>
+                    @if (auth()->user()->isAdmin())
+                        <flux:sidebar.item icon="academic-cap" :href="route('cohorts.index')" :current="request()->routeIs('cohorts.*')" wire:navigate>
+                            {{ __('Cohorts') }}
+                        </flux:sidebar.item>
+                    @endif
+                </flux:sidebar.group>
+
+                @if (auth()->user()->isAdmin())
+                    <flux:sidebar.group :heading="__('Administration')" class="grid">
+                        <flux:sidebar.item icon="user-group" :href="route('staff.index')" :current="request()->routeIs('staff.*')" wire:navigate>
+                            {{ __('Staff') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endif
             </flux:sidebar.nav>
 
             <flux:spacer />
-
-            <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
