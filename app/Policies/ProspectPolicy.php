@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\ProspectStatus;
 use App\Models\Prospect;
 use App\Models\User;
 
@@ -61,5 +62,25 @@ class ProspectPolicy
     public function reassign(User $user, Prospect $prospect): bool
     {
         return $user->isAdmin();
+    }
+
+    /**
+     * Admins and assigned staff can enroll a qualified, unenrolled prospect.
+     */
+    public function enroll(User $user, Prospect $prospect): bool
+    {
+        if ($prospect->status !== ProspectStatus::Qualified) {
+            return false;
+        }
+
+        if ($prospect->enrollment !== null) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $prospect->assigned_to === $user->id;
     }
 }
