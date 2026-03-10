@@ -4,6 +4,8 @@ use App\Enums\ActivityAction;
 use App\Enums\ActivityType;
 use App\Enums\ProspectStatus;
 use App\Enums\UserRole;
+use App\Models\Cohort;
+use App\Models\Enrollment;
 use App\Models\Prospect;
 use App\Models\ProspectActivity;
 use App\Models\User;
@@ -18,19 +20,28 @@ new #[Title('Prospect')] class extends Component {
     public string $activityNotes = '';
     public string $newStatus = '';
     public string $newAssignedTo = '';
+    public bool $showEnrollModal = false;
+    public string $enrollCohortId = '';
 
     public function mount(Prospect $prospect): void
     {
         $this->authorize('view', $prospect);
-        $this->prospect = $prospect->load(['cohort', 'assignedTo', 'activities.performedBy']);
+        $this->prospect = $prospect->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment']);
         $this->newStatus = $prospect->status->value;
         $this->newAssignedTo = (string) ($prospect->assigned_to ?? '');
+        $this->enrollCohortId = (string) ($prospect->cohort_id ?? '');
     }
 
     #[Computed]
     public function staffMembers(): \Illuminate\Database\Eloquent\Collection
     {
         return User::query()->where('role', UserRole::Staff->value)->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function activeCohorts(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Cohort::query()->where('is_active', true)->orderBy('start_date')->get();
     }
 
     public function logActivity(): void
@@ -71,6 +82,25 @@ new #[Title('Prospect')] class extends Component {
         $this->prospect->refresh()->load(['assignedTo', 'activities.performedBy']);
     }
 
+    public function enroll(): void
+    {
+        $this->authorize('enroll', $this->prospect);
+        $this->validate(['enrollCohortId' => ['required', 'exists:cohorts,id']]);
+
+        $this->prospect->update(['status' => ProspectStatus::Enrolled]);
+
+        Enrollment::create([
+            'prospect_id' => $this->prospect->id,
+            'cohort_id' => $this->enrollCohortId,
+            'status' => 'pending',
+            'enrolled_at' => now(),
+        ]);
+
+        $this->showEnrollModal = false;
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment']);
+        $this->newStatus = $this->prospect->status->value;
+    }
+
     public function delete(): void
     {
         $this->authorize('delete', $this->prospect);
@@ -89,12 +119,56 @@ new #[Title('Prospect')] class extends Component {
                 <flux:badge color="{{ $prospect->status->color() }}" size="sm" class="mt-1">{{ $prospect->status->label() }}</flux:badge>
             </div>
         </div>
-        @if (auth()->user()->isAdmin())
-            <flux:button variant="danger" icon="trash" wire:click="delete" wire:confirm="{{ __('Are you sure you want to delete this prospect?') }}">
-                {{ __('Delete') }}
-            </flux:button>
-        @endif
+        <div class="flex gap-2">
+            @can('enroll', $prospect)
+                <flux:button variant="primary" icon="academic-cap" wire:click="$set('showEnrollModal', true)">
+                    {{ __('Enroll') }}
+                </flux:button>
+            @endcan
+            @if (auth()->user()->isAdmin())
+                <flux:button variant="danger" icon="trash" wire:click="delete" wire:confirm="{{ __('Are you sure you want to delete this prospect?') }}">
+                    {{ __('Delete') }}
+                </flux:button>
+            @endif
+        </div>
     </div>
+
+    {{-- Enroll Modal --}}
+    <flux:modal name="enroll-prospect" :show="$showEnrollModal" focusable class="max-w-lg">
+        <form wire:submit="enroll" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Enroll Prospect') }}</flux:heading>
+                <flux:subheading>{{ __('Confirm cohort placement and create an enrollment record.') }}</flux:subheading>
+            </div>
+
+            <flux:field>
+                <flux:label>{{ __('Cohort') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:select wire:model.live="enrollCohortId">
+                    <flux:select.option value="">{{ __('Select a cohort...') }}</flux:select.option>
+                    @foreach ($this->activeCohorts as $cohort)
+                        <flux:select.option value="{{ $cohort->id }}">{{ $cohort->name }} — {{ $cohort->start_date->format('M j, Y') }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="enrollCohortId" />
+            </flux:field>
+
+            @if ($enrollCohortId)
+                @php $selectedCohort = $this->activeCohorts->firstWhere('id', $enrollCohortId); @endphp
+                @if ($selectedCohort)
+                    <flux:text class="text-sm text-zinc-500">
+                        {{ __('Start date') }}: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $selectedCohort->start_date->format('l, F j, Y') }}</span>
+                    </flux:text>
+                @endif
+            @endif
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button wire:click="$set('showEnrollModal', false)">{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">{{ __('Confirm Enrollment') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {{-- Left: Prospect Details --}}
