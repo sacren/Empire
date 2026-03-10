@@ -37,4 +37,9 @@ class Cohort extends Model
     {
         return $this->hasMany(Prospect::class);
     }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class);
+    }
 }

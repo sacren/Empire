@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Prospect extends Model
 {
@@ -62,6 +63,11 @@ class Prospect extends Model
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function enrollment(): HasOne
+    {
+        return $this->hasOne(Enrollment::class);
     }
 
     public function activities(): HasMany
