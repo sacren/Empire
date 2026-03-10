@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Cohort;
+use App\Models\Prospect;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -9,15 +11,14 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class EnrollmentFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            //
+            'prospect_id' => Prospect::factory(),
+            'cohort_id' => Cohort::factory(),
+            'amount_owed' => null,
+            'status' => 'pending',
+            'enrolled_at' => now(),
         ];
     }
 }
