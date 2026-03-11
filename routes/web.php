@@ -20,6 +20,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Staff (admin only)
     Route::livewire('staff', 'pages::staff.index')->name('staff.index');
     Route::livewire('staff/create', 'pages::staff.create')->name('staff.create');
+
+    // Finance (admin only)
+    Route::livewire('finance', 'pages::finance.index')->name('finance.index');
 });
 
 // Public inquiry form
