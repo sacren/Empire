@@ -2,10 +2,13 @@
 
 use App\Enums\ActivityAction;
 use App\Enums\ActivityType;
+use App\Enums\EnrollmentStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\ProspectStatus;
 use App\Enums\UserRole;
 use App\Models\Cohort;
 use App\Models\Enrollment;
+use App\Models\Payment;
 use App\Models\Prospect;
 use App\Models\ProspectActivity;
 use App\Models\User;
@@ -22,11 +25,18 @@ new #[Title('Prospect')] class extends Component {
     public string $newAssignedTo = '';
     public bool $showEnrollModal = false;
     public string $enrollCohortId = '';
+    public bool $showSetTuitionModal = false;
+    public string $tuitionAmount = '';
+    public bool $showAddPaymentModal = false;
+    public string $paymentAmount = '';
+    public string $paymentMethod = '';
+    public string $paymentDate = '';
+    public string $paymentNotes = '';
 
     public function mount(Prospect $prospect): void
     {
         $this->authorize('view', $prospect);
-        $this->prospect = $prospect->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment']);
+        $this->prospect = $prospect->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
         $this->newStatus = $prospect->status->value;
         $this->newAssignedTo = (string) ($prospect->assigned_to ?? '');
         $this->enrollCohortId = (string) ($prospect->cohort_id ?? '');
@@ -97,8 +107,48 @@ new #[Title('Prospect')] class extends Component {
         ]);
 
         $this->showEnrollModal = false;
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment']);
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
         $this->newStatus = $this->prospect->status->value;
+    }
+
+    public function setTuition(): void
+    {
+        $this->authorize('setTuition', $this->prospect->enrollment);
+        $this->validate([
+            'tuitionAmount' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        $this->prospect->enrollment->update(['amount_owed' => $this->tuitionAmount]);
+        $this->prospect->enrollment->recalculateStatus();
+        $this->showSetTuitionModal = false;
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
+    }
+
+    public function addPayment(): void
+    {
+        $this->authorize('createPayment', $this->prospect->enrollment);
+        $this->validate([
+            'paymentAmount' => ['required', 'numeric', 'min:0.01'],
+            'paymentMethod' => ['required', 'string'],
+            'paymentDate' => ['required', 'date'],
+        ]);
+
+        Payment::create([
+            'enrollment_id' => $this->prospect->enrollment->id,
+            'amount' => $this->paymentAmount,
+            'method' => $this->paymentMethod,
+            'paid_at' => $this->paymentDate,
+            'notes' => $this->paymentNotes ?: null,
+        ]);
+
+        $this->prospect->enrollment->refresh()->recalculateStatus();
+
+        $this->paymentAmount = '';
+        $this->paymentMethod = '';
+        $this->paymentDate = '';
+        $this->paymentNotes = '';
+        $this->showAddPaymentModal = false;
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
     }
 
     public function delete(): void
@@ -166,6 +216,68 @@ new #[Title('Prospect')] class extends Component {
                     <flux:button wire:click="$set('showEnrollModal', false)">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button type="submit" variant="primary">{{ __('Confirm Enrollment') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    {{-- Set Tuition Modal --}}
+    <flux:modal name="set-tuition" :show="$showSetTuitionModal" focusable class="max-w-md">
+        <form wire:submit="setTuition" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Set Tuition') }}</flux:heading>
+                <flux:subheading>{{ __('Enter the total tuition amount for this enrollment.') }}</flux:subheading>
+            </div>
+            <flux:field>
+                <flux:label>{{ __('Amount') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:input wire:model="tuitionAmount" type="number" step="0.01" min="0.01" placeholder="0.00" />
+                <flux:error name="tuitionAmount" />
+            </flux:field>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button wire:click="$set('showSetTuitionModal', false)">{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    {{-- Add Payment Modal --}}
+    <flux:modal name="add-payment" :show="$showAddPaymentModal" focusable class="max-w-md">
+        <form wire:submit="addPayment" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Record Payment') }}</flux:heading>
+                <flux:subheading>{{ __('Record a payment received for this enrollment.') }}</flux:subheading>
+            </div>
+            <flux:field>
+                <flux:label>{{ __('Amount') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:input wire:model="paymentAmount" type="number" step="0.01" min="0.01" placeholder="0.00" />
+                <flux:error name="paymentAmount" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Method') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:select wire:model="paymentMethod">
+                    <flux:select.option value="">{{ __('Select method...') }}</flux:select.option>
+                    @foreach (App\Enums\PaymentMethod::cases() as $method)
+                        <flux:select.option value="{{ $method->value }}">{{ $method->label() }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="paymentMethod" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Date') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:input wire:model="paymentDate" type="date" />
+                <flux:error name="paymentDate" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Notes') }}</flux:label>
+                <flux:textarea wire:model="paymentNotes" rows="2" />
+                <flux:error name="paymentNotes" />
+            </flux:field>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button wire:click="$set('showAddPaymentModal', false)">{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">{{ __('Record Payment') }}</flux:button>
             </div>
         </form>
     </flux:modal>
@@ -294,6 +406,58 @@ new #[Title('Prospect')] class extends Component {
                     <flux:button type="submit" variant="primary" class="w-full">{{ __('Update Status') }}</flux:button>
                 </form>
             </div>
+
+            {{-- Enrollment & Payments --}}
+            @if ($prospect->enrollment)
+                <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6">
+                    <flux:heading class="mb-4">{{ __('Enrollment') }}</flux:heading>
+                    <dl class="flex flex-col gap-2 mb-4">
+                        <div>
+                            <flux:text class="text-xs text-zinc-500">{{ __('Status') }}</flux:text>
+                            <flux:badge color="{{ $prospect->enrollment->status->color() }}" size="sm">{{ $prospect->enrollment->status->label() }}</flux:badge>
+                        </div>
+                        <div>
+                            <flux:text class="text-xs text-zinc-500">{{ __('Tuition') }}</flux:text>
+                            <flux:text class="text-sm">{{ $prospect->enrollment->amount_owed !== null ? '$'.number_format($prospect->enrollment->amount_owed, 2) : __('Not set') }}</flux:text>
+                        </div>
+                        <div>
+                            <flux:text class="text-xs text-zinc-500">{{ __('Paid') }}</flux:text>
+                            <flux:text class="text-sm">${{ number_format($prospect->enrollment->totalPaid(), 2) }}</flux:text>
+                        </div>
+                        @if ($prospect->enrollment->amount_owed !== null)
+                            <div>
+                                <flux:text class="text-xs text-zinc-500">{{ __('Balance') }}</flux:text>
+                                <flux:text class="text-sm">${{ number_format($prospect->enrollment->balance(), 2) }}</flux:text>
+                            </div>
+                        @endif
+                    </dl>
+                    @if (auth()->user()->isAdmin())
+                        <div class="flex flex-col gap-2">
+                            <flux:button size="sm" wire:click="$set('showSetTuitionModal', true)" class="w-full">
+                                {{ $prospect->enrollment->amount_owed !== null ? __('Update Tuition') : __('Set Tuition') }}
+                            </flux:button>
+                            <flux:button size="sm" variant="primary" wire:click="$set('showAddPaymentModal', true)" class="w-full" :disabled="$prospect->enrollment->amount_owed === null">
+                                {{ __('Add Payment') }}
+                            </flux:button>
+                        </div>
+                    @endif
+                    @if ($prospect->enrollment->payments->isNotEmpty())
+                        <div class="mt-4 border-t border-zinc-200 dark:border-zinc-700 pt-4">
+                            <flux:text class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{{ __('Payment History') }}</flux:text>
+                            <div class="flex flex-col gap-2">
+                                @foreach ($prospect->enrollment->payments->sortByDesc('paid_at') as $payment)
+                                    <div wire:key="{{ $payment->id }}" class="flex items-center justify-between text-sm">
+                                        <div>
+                                            <flux:text class="font-medium">${{ number_format($payment->amount, 2) }}</flux:text>
+                                            <flux:text class="text-xs text-zinc-500">{{ $payment->method->label() }} · {{ $payment->paid_at->format('M j, Y') }}</flux:text>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endif
 
             {{-- Assignment (admin only) --}}
             @if (auth()->user()->isAdmin())
