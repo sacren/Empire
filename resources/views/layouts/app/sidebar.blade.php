@@ -33,6 +33,9 @@
                         <flux:sidebar.item icon="user-group" :href="route('staff.index')" :current="request()->routeIs('staff.*')" wire:navigate>
                             {{ __('Staff') }}
                         </flux:sidebar.item>
+                        <flux:sidebar.item icon="banknotes" :href="route('finance.index')" :current="request()->routeIs('finance.*')" wire:navigate>
+                            {{ __('Finance') }}
+                        </flux:sidebar.item>
                     </flux:sidebar.group>
                 @endif
             </flux:sidebar.nav>
