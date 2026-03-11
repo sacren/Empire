@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\EnrollmentStatus;
 use App\Enums\ProspectStatus;
 use App\Models\Cohort;
 use App\Models\Enrollment;
@@ -102,7 +103,7 @@ test('enrolling creates an enrollment record with correct cohort and pending sta
 
     expect($enrollment)->not->toBeNull()
         ->and($enrollment->cohort_id)->toBe($cohort->id)
-        ->and($enrollment->status)->toBe('pending');
+        ->and($enrollment->status)->toBe(EnrollmentStatus::Pending);
 });
 
 test('enrollment requires a cohort to be selected', function () {
