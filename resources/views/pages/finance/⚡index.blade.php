@@ -1,7 +1,7 @@
 <?php
 
-use App\Enums\EnrollmentStatus;
-use App\Models\Enrollment;
+use App\Enums\ProspectStatus;
+use App\Models\Prospect;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -18,14 +18,14 @@ new #[Title('Finance')] class extends Component {
     #[Computed]
     public function summary(): array
     {
-        $enrollments = Enrollment::query()->with('payments')->get();
+        $prospects = $this->enrolledProspects;
 
-        $totalTuition = $enrollments->sum('amount_owed');
-        $totalCollected = $enrollments->flatMap->payments->sum('amount');
+        $totalTuition = $prospects->sum(fn ($p) => (float) ($p->enrollment?->amount_owed ?? 0));
+        $totalCollected = $prospects->sum(fn ($p) => $p->enrollment?->totalPaid() ?? 0);
 
         return [
-            'enrolled' => $enrollments->count(),
-            'tuition_set' => $enrollments->whereNotNull('amount_owed')->count(),
+            'enrolled' => $prospects->count(),
+            'tuition_set' => $prospects->filter(fn ($p) => $p->enrollment?->amount_owed !== null)->count(),
             'total_tuition' => $totalTuition,
             'total_collected' => $totalCollected,
             'total_outstanding' => max(0, $totalTuition - $totalCollected),
@@ -33,11 +33,12 @@ new #[Title('Finance')] class extends Component {
     }
 
     #[Computed]
-    public function enrollments(): \Illuminate\Database\Eloquent\Collection
+    public function enrolledProspects(): \Illuminate\Database\Eloquent\Collection
     {
-        return Enrollment::query()
-            ->with(['prospect', 'cohort', 'payments'])
-            ->orderByDesc('enrolled_at')
+        return Prospect::query()
+            ->where('status', ProspectStatus::Enrolled)
+            ->with(['enrollment.payments', 'cohort'])
+            ->orderByDesc('updated_at')
             ->get();
     }
 }; ?>
@@ -82,29 +83,33 @@ new #[Title('Finance')] class extends Component {
                 </tr>
             </thead>
             <tbody class="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-700">
-                @forelse ($this->enrollments as $enrollment)
-                    <tr wire:key="{{ $enrollment->id }}" class="hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                @forelse ($this->enrolledProspects as $prospect)
+                    <tr wire:key="{{ $prospect->id }}" class="hover:bg-zinc-50 dark:hover:bg-zinc-800">
                         <td class="px-4 py-3">
                             <flux:text class="font-medium">
-                                <a href="{{ route('prospects.show', $enrollment->prospect) }}" wire:navigate class="hover:underline">
-                                    {{ $enrollment->prospect->name }}
+                                <a href="{{ route('prospects.show', $prospect) }}" wire:navigate class="hover:underline">
+                                    {{ $prospect->name }}
                                 </a>
                             </flux:text>
                         </td>
                         <td class="px-4 py-3">
-                            <flux:text class="text-sm">{{ $enrollment->cohort?->name ?? '—' }}</flux:text>
+                            <flux:text class="text-sm">{{ $prospect->cohort?->name ?? '—' }}</flux:text>
                         </td>
                         <td class="px-4 py-3">
-                            <flux:text class="text-sm">{{ $enrollment->amount_owed !== null ? '$'.number_format($enrollment->amount_owed, 2) : '—' }}</flux:text>
+                            <flux:text class="text-sm">{{ $prospect->enrollment?->amount_owed !== null ? '$'.number_format($prospect->enrollment->amount_owed, 2) : '—' }}</flux:text>
                         </td>
                         <td class="px-4 py-3">
-                            <flux:text class="text-sm">${{ number_format($enrollment->totalPaid(), 2) }}</flux:text>
+                            <flux:text class="text-sm">${{ number_format($prospect->enrollment?->totalPaid() ?? 0, 2) }}</flux:text>
                         </td>
                         <td class="px-4 py-3">
-                            <flux:text class="text-sm">{{ $enrollment->balance() !== null ? '$'.number_format($enrollment->balance(), 2) : '—' }}</flux:text>
+                            <flux:text class="text-sm">{{ $prospect->enrollment?->balance() !== null ? '$'.number_format($prospect->enrollment->balance(), 2) : '—' }}</flux:text>
                         </td>
                         <td class="px-4 py-3">
-                            <flux:badge color="{{ $enrollment->status->color() }}" size="sm">{{ $enrollment->status->label() }}</flux:badge>
+                            @if ($prospect->enrollment)
+                                <flux:badge color="{{ $prospect->enrollment->status->color() }}" size="sm">{{ $prospect->enrollment->status->label() }}</flux:badge>
+                            @else
+                                <flux:text class="text-sm">—</flux:text>
+                            @endif
                         </td>
                     </tr>
                 @empty
