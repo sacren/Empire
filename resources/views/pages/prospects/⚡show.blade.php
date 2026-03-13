@@ -23,11 +23,8 @@ new #[Title('Prospect')] class extends Component {
     public string $activityNotes = '';
     public string $newStatus = '';
     public string $newAssignedTo = '';
-    public bool $showEnrollModal = false;
     public string $enrollCohortId = '';
-    public bool $showSetTuitionModal = false;
     public string $tuitionAmount = '';
-    public bool $showAddPaymentModal = false;
     public string $paymentAmount = '';
     public string $paymentMethod = '';
     public string $paymentDate = '';
@@ -106,7 +103,7 @@ new #[Title('Prospect')] class extends Component {
             'enrolled_at' => now(),
         ]);
 
-        $this->showEnrollModal = false;
+        $this->modal('enroll-prospect')->close();
         $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
         $this->newStatus = $this->prospect->status->value;
     }
@@ -120,7 +117,7 @@ new #[Title('Prospect')] class extends Component {
 
         $this->prospect->enrollment->update(['amount_owed' => $this->tuitionAmount]);
         $this->prospect->enrollment->recalculateStatus();
-        $this->showSetTuitionModal = false;
+        $this->modal('set-tuition')->close();
         $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
     }
 
@@ -147,7 +144,7 @@ new #[Title('Prospect')] class extends Component {
         $this->paymentMethod = '';
         $this->paymentDate = '';
         $this->paymentNotes = '';
-        $this->showAddPaymentModal = false;
+        $this->modal('add-payment')->close();
         $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
     }
 
@@ -171,9 +168,9 @@ new #[Title('Prospect')] class extends Component {
         </div>
         <div class="flex gap-2">
             @can('enroll', $prospect)
-                <flux:button variant="primary" icon="academic-cap" wire:click="$set('showEnrollModal', true)">
-                    {{ __('Enroll') }}
-                </flux:button>
+                <flux:modal.trigger name="enroll-prospect">
+                    <flux:button variant="primary" icon="academic-cap">{{ __('Enroll') }}</flux:button>
+                </flux:modal.trigger>
             @endcan
             @if (auth()->user()->isAdmin())
                 <flux:button variant="danger" icon="trash" wire:click="delete" wire:confirm="{{ __('Are you sure you want to delete this prospect?') }}">
@@ -184,7 +181,7 @@ new #[Title('Prospect')] class extends Component {
     </div>
 
     {{-- Enroll Modal --}}
-    <flux:modal name="enroll-prospect" :show="$showEnrollModal" focusable class="max-w-lg">
+    <flux:modal name="enroll-prospect" class="max-w-lg">
         <form wire:submit="enroll" class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ __('Enroll Prospect') }}</flux:heading>
@@ -213,7 +210,7 @@ new #[Title('Prospect')] class extends Component {
 
             <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button wire:click="$set('showEnrollModal', false)">{{ __('Cancel') }}</flux:button>
+                    <flux:button>{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button type="submit" variant="primary">{{ __('Confirm Enrollment') }}</flux:button>
             </div>
@@ -221,7 +218,7 @@ new #[Title('Prospect')] class extends Component {
     </flux:modal>
 
     {{-- Set Tuition Modal --}}
-    <flux:modal name="set-tuition" :show="$showSetTuitionModal" focusable class="max-w-md">
+    <flux:modal name="set-tuition" class="max-w-md">
         <form wire:submit="setTuition" class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ __('Set Tuition') }}</flux:heading>
@@ -234,7 +231,7 @@ new #[Title('Prospect')] class extends Component {
             </flux:field>
             <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button wire:click="$set('showSetTuitionModal', false)">{{ __('Cancel') }}</flux:button>
+                    <flux:button>{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
             </div>
@@ -242,7 +239,7 @@ new #[Title('Prospect')] class extends Component {
     </flux:modal>
 
     {{-- Add Payment Modal --}}
-    <flux:modal name="add-payment" :show="$showAddPaymentModal" focusable class="max-w-md">
+    <flux:modal name="add-payment" class="max-w-md">
         <form wire:submit="addPayment" class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ __('Record Payment') }}</flux:heading>
@@ -275,7 +272,7 @@ new #[Title('Prospect')] class extends Component {
             </flux:field>
             <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button wire:click="$set('showAddPaymentModal', false)">{{ __('Cancel') }}</flux:button>
+                    <flux:button>{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button type="submit" variant="primary">{{ __('Record Payment') }}</flux:button>
             </div>
@@ -433,12 +430,16 @@ new #[Title('Prospect')] class extends Component {
                     </dl>
                     @if (auth()->user()->isAdmin())
                         <div class="flex flex-col gap-2">
-                            <flux:button size="sm" wire:click="$set('showSetTuitionModal', true)" class="w-full">
-                                {{ $prospect->enrollment->amount_owed !== null ? __('Update Tuition') : __('Set Tuition') }}
-                            </flux:button>
-                            <flux:button size="sm" variant="primary" wire:click="$set('showAddPaymentModal', true)" class="w-full" :disabled="$prospect->enrollment->amount_owed === null">
-                                {{ __('Add Payment') }}
-                            </flux:button>
+                            <flux:modal.trigger name="set-tuition">
+                                <flux:button size="sm" class="w-full">
+                                    {{ $prospect->enrollment->amount_owed !== null ? __('Update Tuition') : __('Set Tuition') }}
+                                </flux:button>
+                            </flux:modal.trigger>
+                            <flux:modal.trigger name="add-payment">
+                                <flux:button size="sm" variant="primary" class="w-full" :disabled="$prospect->enrollment->amount_owed === null">
+                                    {{ __('Add Payment') }}
+                                </flux:button>
+                            </flux:modal.trigger>
                         </div>
                     @endif
                     @if ($prospect->enrollment->payments->isNotEmpty())
