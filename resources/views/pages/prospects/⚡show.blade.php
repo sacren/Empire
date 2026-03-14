@@ -138,7 +138,7 @@ new #[Title('Prospect')] class extends Component {
             'notes' => $this->paymentNotes ?: null,
         ]);
 
-        $this->prospect->enrollment->refresh()->recalculateStatus();
+        $this->prospect->enrollment->refresh();
 
         $this->paymentAmount = '';
         $this->paymentMethod = '';

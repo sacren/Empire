@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Payment;
 use App\Models\Prospect;
+use App\Observers\PaymentObserver;
 use App\Observers\ProspectObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        Payment::observe(PaymentObserver::class);
         Prospect::observe(ProspectObserver::class);
     }
 
