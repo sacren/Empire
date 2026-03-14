@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\EnrollmentStatus;
 use App\Models\Cohort;
 use App\Models\Prospect;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -17,7 +18,7 @@ class EnrollmentFactory extends Factory
             'prospect_id' => Prospect::factory(),
             'cohort_id' => Cohort::factory(),
             'amount_owed' => null,
-            'status' => 'pending',
+            'status' => EnrollmentStatus::Pending->value,
             'enrolled_at' => now(),
         ];
     }
