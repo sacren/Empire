@@ -6,8 +6,10 @@ use App\Enums\EnrollmentStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\ProspectStatus;
 use App\Enums\UserRole;
+use App\Models\AttendanceRecord;
 use App\Models\Cohort;
 use App\Models\Enrollment;
+use App\Models\MilestoneRecord;
 use App\Models\Payment;
 use App\Models\Prospect;
 use App\Models\ProspectActivity;
@@ -29,11 +31,19 @@ new #[Title('Prospect')] class extends Component {
     public string $paymentMethod = '';
     public string $paymentDate = '';
     public string $paymentNotes = '';
+    public string $sessionDate = '';
+    public string $sessionStatus = '';
+    public string $sessionNotes = '';
+    public string $milestoneTitle = '';
+    public string $milestoneNotes = '';
+    public string $graduationDate = '';
+    public string $certificateNumber = '';
+    public string $certificateIssuedAt = '';
 
     public function mount(Prospect $prospect): void
     {
         $this->authorize('view', $prospect);
-        $this->prospect = $prospect->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
+        $this->prospect = $prospect->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
         $this->newStatus = $prospect->status->value;
         $this->newAssignedTo = (string) ($prospect->assigned_to ?? '');
         $this->enrollCohortId = (string) ($prospect->cohort_id ?? '');
@@ -104,7 +114,7 @@ new #[Title('Prospect')] class extends Component {
         ]);
 
         $this->modal('enroll-prospect')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
         $this->newStatus = $this->prospect->status->value;
     }
 
@@ -118,7 +128,7 @@ new #[Title('Prospect')] class extends Component {
         $this->prospect->enrollment->update(['amount_owed' => $this->tuitionAmount]);
         $this->prospect->enrollment->recalculateStatus();
         $this->modal('set-tuition')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
     }
 
     public function addPayment(): void
@@ -145,7 +155,80 @@ new #[Title('Prospect')] class extends Component {
         $this->paymentDate = '';
         $this->paymentNotes = '';
         $this->modal('add-payment')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments']);
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+    }
+
+    public function addAttendanceRecord(): void
+    {
+        $this->authorize('manageAttendance', $this->prospect->enrollment);
+        $this->validate([
+            'sessionDate' => ['required', 'date'],
+            'sessionStatus' => ['required', 'string'],
+        ]);
+
+        AttendanceRecord::create([
+            'enrollment_id' => $this->prospect->enrollment->id,
+            'session_date' => $this->sessionDate,
+            'status' => $this->sessionStatus,
+            'notes' => $this->sessionNotes ?: null,
+        ]);
+
+        $this->sessionDate = '';
+        $this->sessionStatus = '';
+        $this->sessionNotes = '';
+        $this->modal('add-attendance')->close();
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+    }
+
+    public function addMilestone(): void
+    {
+        $this->authorize('manageMilestones', $this->prospect->enrollment);
+        $this->validate([
+            'milestoneTitle' => ['required', 'string', 'max:255'],
+        ]);
+
+        MilestoneRecord::create([
+            'enrollment_id' => $this->prospect->enrollment->id,
+            'title' => $this->milestoneTitle,
+            'notes' => $this->milestoneNotes ?: null,
+        ]);
+
+        $this->milestoneTitle = '';
+        $this->milestoneNotes = '';
+        $this->modal('add-milestone')->close();
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+    }
+
+    public function completeMilestone(int $id): void
+    {
+        $this->authorize('manageMilestones', $this->prospect->enrollment);
+
+        $milestone = MilestoneRecord::findOrFail($id);
+        $milestone->update(['completed_at' => now()]);
+
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+    }
+
+    public function graduate(): void
+    {
+        $this->authorize('graduate', $this->prospect->enrollment);
+        $this->validate([
+            'graduationDate' => ['required', 'date'],
+            'certificateNumber' => ['nullable', 'string', 'max:255'],
+            'certificateIssuedAt' => ['nullable', 'date'],
+        ]);
+
+        $this->prospect->enrollment->update([
+            'graduated_at' => $this->graduationDate,
+            'certificate_number' => $this->certificateNumber ?: null,
+            'certificate_issued_at' => $this->certificateIssuedAt ?: null,
+        ]);
+
+        $this->prospect->update(['status' => ProspectStatus::Graduated]);
+
+        $this->modal('graduate-student')->close();
+        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+        $this->newStatus = $this->prospect->status->value;
     }
 
     public function delete(): void
@@ -275,6 +358,97 @@ new #[Title('Prospect')] class extends Component {
                     <flux:button>{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button type="submit" variant="primary">{{ __('Record Payment') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    {{-- Add Attendance Modal --}}
+    <flux:modal name="add-attendance" class="max-w-md">
+        <form wire:submit="addAttendanceRecord" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Record Attendance') }}</flux:heading>
+                <flux:subheading>{{ __('Record attendance for a training session.') }}</flux:subheading>
+            </div>
+            <flux:field>
+                <flux:label>{{ __('Session Date') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:input wire:model="sessionDate" type="date" />
+                <flux:error name="sessionDate" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Status') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:select wire:model="sessionStatus">
+                    <flux:select.option value="">{{ __('Select status...') }}</flux:select.option>
+                    @foreach (App\Enums\AttendanceStatus::cases() as $status)
+                        <flux:select.option value="{{ $status->value }}">{{ $status->label() }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="sessionStatus" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Notes') }}</flux:label>
+                <flux:textarea wire:model="sessionNotes" rows="2" />
+            </flux:field>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button>{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    {{-- Add Milestone Modal --}}
+    <flux:modal name="add-milestone" class="max-w-md">
+        <form wire:submit="addMilestone" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Add Milestone') }}</flux:heading>
+                <flux:subheading>{{ __('Track a key program stage or achievement.') }}</flux:subheading>
+            </div>
+            <flux:field>
+                <flux:label>{{ __('Title') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:input wire:model="milestoneTitle" placeholder="{{ __('e.g. Module 1 Complete') }}" />
+                <flux:error name="milestoneTitle" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Notes') }}</flux:label>
+                <flux:textarea wire:model="milestoneNotes" rows="2" />
+            </flux:field>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button>{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">{{ __('Add Milestone') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    {{-- Graduate Student Modal --}}
+    <flux:modal name="graduate-student" class="max-w-md">
+        <form wire:submit="graduate" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Graduate Student') }}</flux:heading>
+                <flux:subheading>{{ __('Record the graduation and issue the certificate.') }}</flux:subheading>
+            </div>
+            <flux:field>
+                <flux:label>{{ __('Graduation Date') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:input wire:model="graduationDate" type="date" />
+                <flux:error name="graduationDate" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Certificate Number') }}</flux:label>
+                <flux:input wire:model="certificateNumber" placeholder="{{ __('Optional') }}" />
+                <flux:error name="certificateNumber" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Certificate Issued Date') }}</flux:label>
+                <flux:input wire:model="certificateIssuedAt" type="date" />
+                <flux:error name="certificateIssuedAt" />
+            </flux:field>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button>{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">{{ __('Confirm Graduation') }}</flux:button>
             </div>
         </form>
     </flux:modal>
@@ -457,6 +631,94 @@ new #[Title('Prospect')] class extends Component {
                             </div>
                         </div>
                     @endif
+
+                    {{-- Attendance --}}
+                    <div class="mt-4 border-t border-zinc-200 dark:border-zinc-700 pt-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <flux:text class="text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Attendance') }}</flux:text>
+                            @if (auth()->user()->isAdmin())
+                                <flux:modal.trigger name="add-attendance">
+                                    <flux:button size="xs" icon="plus">{{ __('Add Session') }}</flux:button>
+                                </flux:modal.trigger>
+                            @endif
+                        </div>
+                        @if ($prospect->enrollment->attendanceRecords->isNotEmpty())
+                            <div class="flex flex-col gap-1">
+                                @foreach ($prospect->enrollment->attendanceRecords as $record)
+                                    <div wire:key="attendance-{{ $record->id }}" class="flex items-center justify-between text-sm">
+                                        <flux:text class="text-xs text-zinc-500">{{ $record->session_date->format('M j, Y') }}</flux:text>
+                                        <flux:badge color="{{ $record->status->color() }}" size="sm">{{ $record->status->label() }}</flux:badge>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <flux:text class="text-xs text-zinc-400">{{ __('No sessions recorded.') }}</flux:text>
+                        @endif
+                    </div>
+
+                    {{-- Milestones --}}
+                    <div class="mt-4 border-t border-zinc-200 dark:border-zinc-700 pt-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <flux:text class="text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Milestones') }}</flux:text>
+                            @if (auth()->user()->isAdmin())
+                                <flux:modal.trigger name="add-milestone">
+                                    <flux:button size="xs" icon="plus">{{ __('Add') }}</flux:button>
+                                </flux:modal.trigger>
+                            @endif
+                        </div>
+                        @if ($prospect->enrollment->milestoneRecords->isNotEmpty())
+                            <div class="flex flex-col gap-2">
+                                @foreach ($prospect->enrollment->milestoneRecords as $milestone)
+                                    <div wire:key="milestone-{{ $milestone->id }}" class="flex items-center justify-between gap-2 text-sm">
+                                        <div class="flex items-center gap-1.5 min-w-0">
+                                            @if ($milestone->completed_at)
+                                                <flux:icon name="check-circle" class="size-4 text-green-500 shrink-0" />
+                                            @else
+                                                <flux:icon name="clock" class="size-4 text-zinc-400 shrink-0" />
+                                            @endif
+                                            <flux:text class="text-sm truncate">{{ $milestone->title }}</flux:text>
+                                        </div>
+                                        @if (!$milestone->completed_at && auth()->user()->isAdmin())
+                                            <flux:button size="xs" wire:click="completeMilestone({{ $milestone->id }})">{{ __('Done') }}</flux:button>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <flux:text class="text-xs text-zinc-400">{{ __('No milestones added.') }}</flux:text>
+                        @endif
+                    </div>
+
+                    {{-- Graduation --}}
+                    <div class="mt-4 border-t border-zinc-200 dark:border-zinc-700 pt-4">
+                        <flux:text class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{{ __('Graduation') }}</flux:text>
+                        @if ($prospect->enrollment->isGraduated())
+                            <dl class="flex flex-col gap-1">
+                                <div>
+                                    <flux:text class="text-xs text-zinc-500">{{ __('Graduated') }}</flux:text>
+                                    <flux:text class="text-sm">{{ $prospect->enrollment->graduated_at->format('M j, Y') }}</flux:text>
+                                </div>
+                                @if ($prospect->enrollment->certificate_number)
+                                    <div>
+                                        <flux:text class="text-xs text-zinc-500">{{ __('Certificate #') }}</flux:text>
+                                        <flux:text class="text-sm">{{ $prospect->enrollment->certificate_number }}</flux:text>
+                                    </div>
+                                @endif
+                                @if ($prospect->enrollment->certificate_issued_at)
+                                    <div>
+                                        <flux:text class="text-xs text-zinc-500">{{ __('Issued') }}</flux:text>
+                                        <flux:text class="text-sm">{{ $prospect->enrollment->certificate_issued_at->format('M j, Y') }}</flux:text>
+                                    </div>
+                                @endif
+                            </dl>
+                        @elseif (auth()->user()->isAdmin())
+                            <flux:modal.trigger name="graduate-student">
+                                <flux:button size="sm" variant="primary" class="w-full">{{ __('Graduate Student') }}</flux:button>
+                            </flux:modal.trigger>
+                        @else
+                            <flux:text class="text-xs text-zinc-400">{{ __('Not yet graduated.') }}</flux:text>
+                        @endif
+                    </div>
                 </div>
             @endif
 
