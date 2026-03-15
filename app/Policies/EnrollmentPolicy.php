@@ -22,4 +22,19 @@ class EnrollmentPolicy
     {
         return $user->isAdmin();
     }
+
+    public function graduate(User $user, Enrollment $enrollment): bool
+    {
+        return $user->isAdmin();
+    }
+
+    public function manageAttendance(User $user, Enrollment $enrollment): bool
+    {
+        return $user->isAdmin();
+    }
+
+    public function manageMilestones(User $user, Enrollment $enrollment): bool
+    {
+        return $user->isAdmin();
+    }
 }
