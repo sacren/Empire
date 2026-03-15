@@ -19,6 +19,9 @@ class Enrollment extends Model
         'amount_owed',
         'status',
         'enrolled_at',
+        'graduated_at',
+        'certificate_number',
+        'certificate_issued_at',
     ];
 
     protected function casts(): array
@@ -26,6 +29,8 @@ class Enrollment extends Model
         return [
             'amount_owed' => 'decimal:2',
             'enrolled_at' => 'datetime',
+            'graduated_at' => 'datetime',
+            'certificate_issued_at' => 'date',
             'status' => EnrollmentStatus::class,
         ];
     }
@@ -45,6 +50,16 @@ class Enrollment extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function attendanceRecords(): HasMany
+    {
+        return $this->hasMany(AttendanceRecord::class)->latest('session_date');
+    }
+
+    public function milestoneRecords(): HasMany
+    {
+        return $this->hasMany(MilestoneRecord::class)->oldest();
+    }
+
     public function totalPaid(): float
     {
         return (float) $this->payments()->sum('amount');
@@ -57,6 +72,11 @@ class Enrollment extends Model
         }
 
         return (float) $this->amount_owed - $this->totalPaid();
+    }
+
+    public function isGraduated(): bool
+    {
+        return $this->graduated_at !== null;
     }
 
     public function recalculateStatus(): void
