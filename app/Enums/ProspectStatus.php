@@ -11,6 +11,7 @@ enum ProspectStatus: string
     case Enrolled = 'enrolled';
     case Disqualified = 'disqualified';
     case Abandoned = 'abandoned';
+    case Graduated = 'graduated';
 
     public function label(): string
     {
@@ -22,6 +23,7 @@ enum ProspectStatus: string
             self::Enrolled => 'Enrolled',
             self::Disqualified => 'Disqualified',
             self::Abandoned => 'Abandoned',
+            self::Graduated => 'Graduated',
         };
     }
 
@@ -35,6 +37,7 @@ enum ProspectStatus: string
             self::Enrolled => 'lime',
             self::Disqualified => 'red',
             self::Abandoned => 'zinc',
+            self::Graduated => 'blue',
         };
     }
 }
