@@ -604,16 +604,20 @@ new #[Title('Prospect')] class extends Component {
                     </dl>
                     @if (auth()->user()->isAdmin())
                         <div class="flex flex-col gap-2">
-                            <flux:modal.trigger name="set-tuition">
-                                <flux:button size="sm" class="w-full">
-                                    {{ $prospect->enrollment->amount_owed !== null ? __('Update Tuition') : __('Set Tuition') }}
-                                </flux:button>
-                            </flux:modal.trigger>
-                            <flux:modal.trigger name="add-payment">
-                                <flux:button size="sm" variant="primary" class="w-full" :disabled="$prospect->enrollment->amount_owed === null">
-                                    {{ __('Add Payment') }}
-                                </flux:button>
-                            </flux:modal.trigger>
+                            @can('setTuition', $prospect->enrollment)
+                                <flux:modal.trigger name="set-tuition">
+                                    <flux:button size="sm" class="w-full">
+                                        {{ $prospect->enrollment->amount_owed !== null ? __('Update Tuition') : __('Set Tuition') }}
+                                    </flux:button>
+                                </flux:modal.trigger>
+                            @endcan
+                            @can('createPayment', $prospect->enrollment)
+                                <flux:modal.trigger name="add-payment">
+                                    <flux:button size="sm" variant="primary" class="w-full" :disabled="$prospect->enrollment->amount_owed === null">
+                                        {{ __('Add Payment') }}
+                                    </flux:button>
+                                </flux:modal.trigger>
+                            @endcan
                         </div>
                     @endif
                     @if ($prospect->enrollment->payments->isNotEmpty())

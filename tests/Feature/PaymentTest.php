@@ -126,6 +126,44 @@ test('partial payment sets enrollment status to partial', function () {
     expect($enrollment->fresh()->status)->toBe(EnrollmentStatus::Partial);
 });
 
+test('admin cannot set tuition when enrollment is fully paid', function () {
+    $admin = User::factory()->admin()->create();
+    $cohort = Cohort::factory()->create();
+    $prospect = Prospect::factory()->create(['status' => ProspectStatus::Enrolled]);
+    Enrollment::factory()->create([
+        'prospect_id' => $prospect->id,
+        'cohort_id' => $cohort->id,
+        'amount_owed' => 1000,
+        'status' => EnrollmentStatus::Paid,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::prospects.show', ['prospect' => $prospect])
+        ->set('tuitionAmount', '9999')
+        ->call('setTuition')
+        ->assertForbidden();
+});
+
+test('admin cannot record payment when enrollment is fully paid', function () {
+    $admin = User::factory()->admin()->create();
+    $cohort = Cohort::factory()->create();
+    $prospect = Prospect::factory()->create(['status' => ProspectStatus::Enrolled]);
+    Enrollment::factory()->create([
+        'prospect_id' => $prospect->id,
+        'cohort_id' => $cohort->id,
+        'amount_owed' => 1000,
+        'status' => EnrollmentStatus::Paid,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::prospects.show', ['prospect' => $prospect])
+        ->set('paymentAmount', '500')
+        ->set('paymentMethod', PaymentMethod::Cash->value)
+        ->set('paymentDate', today()->format('Y-m-d'))
+        ->call('addPayment')
+        ->assertForbidden();
+});
+
 test('finance page is accessible to admin', function () {
     $admin = User::factory()->admin()->create();
 
