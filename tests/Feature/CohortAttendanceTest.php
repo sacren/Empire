@@ -180,6 +180,52 @@ test('session date is required to save attendance', function () {
         ->assertHasErrors(['sessionDate']);
 });
 
+test('recent sessions list shows recorded dates with status summary', function () {
+    $admin = User::factory()->admin()->create();
+    $cohort = Cohort::factory()->create();
+    $enrollment = createCohortEnrollment($cohort);
+
+    AttendanceRecord::factory()->create([
+        'enrollment_id' => $enrollment->id,
+        'session_date' => '2026-03-15',
+        'status' => AttendanceStatus::Present->value,
+    ]);
+    AttendanceRecord::factory()->create([
+        'enrollment_id' => $enrollment->id,
+        'session_date' => '2026-03-14',
+        'status' => AttendanceStatus::Absent->value,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::cohorts.attendance', ['cohort' => $cohort])
+        ->assertSee('Recent Sessions')
+        ->assertSee('Mar 15, 2026')
+        ->assertSee('Mar 14, 2026');
+});
+
+test('clicking a past session date loads its records into the form', function () {
+    $admin = User::factory()->admin()->create();
+    $cohort = Cohort::factory()->create();
+    $enrollment = createCohortEnrollment($cohort);
+
+    AttendanceRecord::factory()->create([
+        'enrollment_id' => $enrollment->id,
+        'session_date' => '2026-03-12',
+        'status' => AttendanceStatus::Late->value,
+        'notes' => 'Bus was late',
+    ]);
+
+    $component = Livewire::actingAs($admin)
+        ->test('pages::cohorts.attendance', ['cohort' => $cohort])
+        ->call('loadSession', '2026-03-12');
+
+    expect($component->get('sessionDate'))->toBe('2026-03-12');
+
+    $records = $component->get('records');
+    expect($records[$enrollment->id]['status'])->toBe(AttendanceStatus::Late->value)
+        ->and($records[$enrollment->id]['notes'])->toBe('Bus was late');
+});
+
 function createCohortEnrollment(Cohort $cohort): Enrollment
 {
     $prospect = Prospect::factory()->create(['status' => ProspectStatus::Enrolled, 'cohort_id' => $cohort->id]);
