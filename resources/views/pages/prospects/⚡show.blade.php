@@ -6,7 +6,6 @@ use App\Enums\EnrollmentStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\ProspectStatus;
 use App\Enums\UserRole;
-use App\Models\AttendanceRecord;
 use App\Models\Cohort;
 use App\Models\Enrollment;
 use App\Models\MilestoneRecord;
@@ -31,9 +30,6 @@ new #[Title('Prospect')] class extends Component {
     public string $paymentMethod = '';
     public string $paymentDate = '';
     public string $paymentNotes = '';
-    public string $sessionDate = '';
-    public string $sessionStatus = '';
-    public string $sessionNotes = '';
     public string $milestoneTitle = '';
     public string $milestoneNotes = '';
     public string $graduationDate = '';
@@ -155,28 +151,6 @@ new #[Title('Prospect')] class extends Component {
         $this->paymentDate = '';
         $this->paymentNotes = '';
         $this->modal('add-payment')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
-    }
-
-    public function addAttendanceRecord(): void
-    {
-        $this->authorize('manageAttendance', $this->prospect->enrollment);
-        $this->validate([
-            'sessionDate' => ['required', 'date'],
-            'sessionStatus' => ['required', 'string'],
-        ]);
-
-        AttendanceRecord::create([
-            'enrollment_id' => $this->prospect->enrollment->id,
-            'session_date' => $this->sessionDate,
-            'status' => $this->sessionStatus,
-            'notes' => $this->sessionNotes ?: null,
-        ]);
-
-        $this->sessionDate = '';
-        $this->sessionStatus = '';
-        $this->sessionNotes = '';
-        $this->modal('add-attendance')->close();
         $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
     }
 
@@ -358,41 +332,6 @@ new #[Title('Prospect')] class extends Component {
                     <flux:button>{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button type="submit" variant="primary">{{ __('Record Payment') }}</flux:button>
-            </div>
-        </form>
-    </flux:modal>
-
-    {{-- Add Attendance Modal --}}
-    <flux:modal name="add-attendance" class="max-w-md">
-        <form wire:submit="addAttendanceRecord" class="space-y-6">
-            <div>
-                <flux:heading size="lg">{{ __('Record Attendance') }}</flux:heading>
-                <flux:subheading>{{ __('Record attendance for a training session.') }}</flux:subheading>
-            </div>
-            <flux:field>
-                <flux:label>{{ __('Session Date') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
-                <flux:input wire:model="sessionDate" type="date" />
-                <flux:error name="sessionDate" />
-            </flux:field>
-            <flux:field>
-                <flux:label>{{ __('Status') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
-                <flux:select wire:model="sessionStatus">
-                    <flux:select.option value="">{{ __('Select status...') }}</flux:select.option>
-                    @foreach (App\Enums\AttendanceStatus::cases() as $status)
-                        <flux:select.option value="{{ $status->value }}">{{ $status->label() }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="sessionStatus" />
-            </flux:field>
-            <flux:field>
-                <flux:label>{{ __('Notes') }}</flux:label>
-                <flux:textarea wire:model="sessionNotes" rows="2" />
-            </flux:field>
-            <div class="flex justify-end gap-2">
-                <flux:modal.close>
-                    <flux:button>{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
-                <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
             </div>
         </form>
     </flux:modal>
@@ -638,14 +577,7 @@ new #[Title('Prospect')] class extends Component {
 
                     {{-- Attendance --}}
                     <div class="mt-4 border-t border-zinc-200 dark:border-zinc-700 pt-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <flux:text class="text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Attendance') }}</flux:text>
-                            @if (auth()->user()->isAdmin())
-                                <flux:modal.trigger name="add-attendance">
-                                    <flux:button size="xs" icon="plus">{{ __('Add Session') }}</flux:button>
-                                </flux:modal.trigger>
-                            @endif
-                        </div>
+                        <flux:text class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{{ __('Attendance') }}</flux:text>
                         @if ($prospect->enrollment->attendanceRecords->isNotEmpty())
                             <div class="flex flex-col gap-1">
                                 @foreach ($prospect->enrollment->attendanceRecords as $record)
