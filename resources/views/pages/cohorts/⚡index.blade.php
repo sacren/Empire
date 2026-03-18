@@ -70,6 +70,7 @@ new #[Title('Cohorts')] class extends Component {
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="flex items-center justify-end gap-2">
+                                        <flux:button size="sm" :href="route('cohorts.attendance', $cohort)" wire:navigate>{{ __('Attendance') }}</flux:button>
                                         <flux:button size="sm" :href="route('cohorts.edit', $cohort)" wire:navigate>{{ __('Edit') }}</flux:button>
                                         <flux:button size="sm" wire:click="toggleCohort({{ $cohort->id }})">
                                             {{ $cohort->is_active ? __('Deactivate') : __('Activate') }}
