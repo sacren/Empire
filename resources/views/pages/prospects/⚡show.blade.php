@@ -577,13 +577,23 @@ new #[Title('Prospect')] class extends Component {
 
                     {{-- Attendance --}}
                     <div class="mt-4 border-t border-zinc-200 dark:border-zinc-700 pt-4">
-                        <flux:text class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{{ __('Attendance') }}</flux:text>
+                        <div class="flex items-center justify-between mb-2">
+                            <flux:text class="text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Attendance') }}</flux:text>
+                            @if (auth()->user()->isAdmin())
+                                <flux:button size="xs" :href="route('cohorts.attendance', $prospect->enrollment->cohort_id)" wire:navigate>{{ __('Record') }}</flux:button>
+                            @endif
+                        </div>
                         @if ($prospect->enrollment->attendanceRecords->isNotEmpty())
-                            <div class="flex flex-col gap-1">
+                            <div class="flex flex-col gap-2">
                                 @foreach ($prospect->enrollment->attendanceRecords as $record)
-                                    <div wire:key="attendance-{{ $record->id }}" class="flex items-center justify-between text-sm">
-                                        <flux:text class="text-xs text-zinc-500">{{ $record->session_date->format('M j, Y') }}</flux:text>
-                                        <flux:badge color="{{ $record->status->color() }}" size="sm">{{ $record->status->label() }}</flux:badge>
+                                    <div wire:key="attendance-{{ $record->id }}">
+                                        <div class="flex items-center justify-between text-sm">
+                                            <flux:text class="text-xs text-zinc-500">{{ $record->session_date->format('M j, Y') }}</flux:text>
+                                            <flux:badge color="{{ $record->status->color() }}" size="sm">{{ $record->status->label() }}</flux:badge>
+                                        </div>
+                                        @if ($record->notes)
+                                            <flux:text class="text-xs text-zinc-400 mt-0.5">{{ $record->notes }}</flux:text>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>

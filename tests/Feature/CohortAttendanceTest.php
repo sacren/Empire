@@ -226,6 +226,64 @@ test('clicking a past session date loads its records into the form', function ()
         ->and($records[$enrollment->id]['notes'])->toBe('Bus was late');
 });
 
+// Prospect show page — attendance display
+
+test('attendance notes are visible on prospect show page', function () {
+    $admin = User::factory()->admin()->create();
+    $cohort = Cohort::factory()->create();
+    $enrollment = createCohortEnrollment($cohort);
+
+    AttendanceRecord::factory()->create([
+        'enrollment_id' => $enrollment->id,
+        'session_date' => '2026-03-10',
+        'status' => AttendanceStatus::Present->value,
+        'notes' => 'Great participation today',
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::prospects.show', ['prospect' => $enrollment->prospect])
+        ->assertSee('Great participation today');
+});
+
+test('attendance notes are hidden when null', function () {
+    $admin = User::factory()->admin()->create();
+    $cohort = Cohort::factory()->create();
+    $enrollment = createCohortEnrollment($cohort);
+
+    AttendanceRecord::factory()->create([
+        'enrollment_id' => $enrollment->id,
+        'session_date' => '2026-03-10',
+        'status' => AttendanceStatus::Present->value,
+        'notes' => null,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::prospects.show', ['prospect' => $enrollment->prospect])
+        ->assertSee('Mar 10, 2026')
+        ->assertSee('Present');
+});
+
+test('admin sees record attendance link on prospect show page', function () {
+    $admin = User::factory()->admin()->create();
+    $cohort = Cohort::factory()->create();
+    $enrollment = createCohortEnrollment($cohort);
+
+    Livewire::actingAs($admin)
+        ->test('pages::prospects.show', ['prospect' => $enrollment->prospect])
+        ->assertSeeHtml(route('cohorts.attendance', $cohort));
+});
+
+test('staff does not see record attendance link on prospect show page', function () {
+    $staff = User::factory()->staff()->create();
+    $cohort = Cohort::factory()->create();
+    $enrollment = createCohortEnrollment($cohort);
+    $enrollment->prospect->update(['assigned_to' => $staff->id]);
+
+    Livewire::actingAs($staff)
+        ->test('pages::prospects.show', ['prospect' => $enrollment->prospect])
+        ->assertDontSeeHtml(route('cohorts.attendance', $cohort));
+});
+
 function createCohortEnrollment(Cohort $cohort): Enrollment
 {
     $prospect = Prospect::factory()->create(['status' => ProspectStatus::Enrolled, 'cohort_id' => $cohort->id]);
