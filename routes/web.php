@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('cohorts', 'pages::cohorts.index')->name('cohorts.index');
     Route::livewire('cohorts/create', 'pages::cohorts.create')->name('cohorts.create');
     Route::livewire('cohorts/{cohort}/edit', 'pages::cohorts.edit')->name('cohorts.edit');
+    Route::livewire('cohorts/{cohort}/attendance', 'pages::cohorts.attendance')->name('cohorts.attendance');
 
     // Staff (admin only)
     Route::livewire('staff', 'pages::staff.index')->name('staff.index');
