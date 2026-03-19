@@ -228,39 +228,20 @@ test('clicking a past session date loads its records into the form', function ()
 
 // Prospect show page — attendance display
 
-test('attendance notes are visible on prospect show page', function () {
+test('prospect show page displays attendance summary by status', function () {
     $admin = User::factory()->admin()->create();
     $cohort = Cohort::factory()->create();
     $enrollment = createCohortEnrollment($cohort);
 
-    AttendanceRecord::factory()->create([
-        'enrollment_id' => $enrollment->id,
-        'session_date' => '2026-03-10',
-        'status' => AttendanceStatus::Present->value,
-        'notes' => 'Great participation today',
-    ]);
+    AttendanceRecord::factory()->create(['enrollment_id' => $enrollment->id, 'session_date' => '2026-03-10', 'status' => AttendanceStatus::Present->value]);
+    AttendanceRecord::factory()->create(['enrollment_id' => $enrollment->id, 'session_date' => '2026-03-11', 'status' => AttendanceStatus::Present->value]);
+    AttendanceRecord::factory()->create(['enrollment_id' => $enrollment->id, 'session_date' => '2026-03-12', 'status' => AttendanceStatus::Absent->value]);
 
     Livewire::actingAs($admin)
         ->test('pages::prospects.show', ['prospect' => $enrollment->prospect])
-        ->assertSee('Great participation today');
-});
-
-test('attendance notes are hidden when null', function () {
-    $admin = User::factory()->admin()->create();
-    $cohort = Cohort::factory()->create();
-    $enrollment = createCohortEnrollment($cohort);
-
-    AttendanceRecord::factory()->create([
-        'enrollment_id' => $enrollment->id,
-        'session_date' => '2026-03-10',
-        'status' => AttendanceStatus::Present->value,
-        'notes' => null,
-    ]);
-
-    Livewire::actingAs($admin)
-        ->test('pages::prospects.show', ['prospect' => $enrollment->prospect])
-        ->assertSee('Mar 10, 2026')
-        ->assertSee('Present');
+        ->assertSee('3 sessions')
+        ->assertSee('2 Present')
+        ->assertSee('1 Absent');
 });
 
 test('admin sees record attendance link on prospect show page', function () {
