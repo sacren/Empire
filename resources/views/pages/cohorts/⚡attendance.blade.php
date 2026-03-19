@@ -215,7 +215,7 @@ new #[Title('Record Attendance')] class extends Component {
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <flux:button size="sm" wire:click="loadSession('{{ $session->session_date }}')">{{ __('Edit') }}</flux:button>
+                                    <flux:button size="sm" wire:click="loadSession('{{ $session->session_date }}')" :loading="false">{{ __('Refresh') }}</flux:button>
                                 </td>
                             </tr>
                         @endforeach
