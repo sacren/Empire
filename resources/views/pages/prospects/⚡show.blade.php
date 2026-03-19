@@ -584,17 +584,11 @@ new #[Title('Prospect')] class extends Component {
                             @endif
                         </div>
                         @if ($prospect->enrollment->attendanceRecords->isNotEmpty())
-                            <div class="flex flex-col gap-2">
-                                @foreach ($prospect->enrollment->attendanceRecords as $record)
-                                    <div wire:key="attendance-{{ $record->id }}">
-                                        <div class="flex items-center justify-between text-sm">
-                                            <flux:text class="text-xs text-zinc-500">{{ $record->session_date->format('M j, Y') }}</flux:text>
-                                            <flux:badge color="{{ $record->status->color() }}" size="sm">{{ $record->status->label() }}</flux:badge>
-                                        </div>
-                                        @if ($record->notes)
-                                            <flux:text class="text-xs text-zinc-400 mt-0.5">{{ $record->notes }}</flux:text>
-                                        @endif
-                                    </div>
+                            <flux:text class="text-xs text-zinc-500 mb-2">{{ trans_choice(':count session|:count sessions', $prospect->enrollment->attendanceRecords->count()) }}</flux:text>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                @foreach ($prospect->enrollment->attendanceRecords->groupBy(fn ($r) => $r->status->value) as $status => $records)
+                                    @php $statusEnum = App\Enums\AttendanceStatus::from($status); @endphp
+                                    <flux:badge color="{{ $statusEnum->color() }}" size="sm">{{ $records->count() }} {{ $statusEnum->label() }}</flux:badge>
                                 @endforeach
                             </div>
                         @else
