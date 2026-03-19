@@ -15,7 +15,7 @@ class AttendanceRecordFactory extends Factory
     {
         return [
             'enrollment_id' => Enrollment::factory(),
-            'session_date' => fake()->unique()->dateTimeBetween('-3 months', 'now')->format('Y-m-d'),
+            'session_date' => fake()->dateTimeBetween('-3 months', 'now')->format('Y-m-d'),
             'status' => fake()->randomElement(AttendanceStatus::cases())->value,
             'notes' => null,
         ];
