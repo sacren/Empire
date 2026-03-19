@@ -153,7 +153,7 @@ new #[Title('Record Attendance')] class extends Component {
                     @foreach ($this->enrollments as $enrollment)
                         <tr wire:key="{{ $enrollment->id }}">
                             <td class="px-4 py-3">
-                                <flux:text class="font-medium">{{ $enrollment->prospect->first_name }} {{ $enrollment->prospect->last_name }}</flux:text>
+                                <flux:text class="font-medium">{{ $enrollment->prospect->name }}</flux:text>
                             </td>
                             <td class="px-4 py-3">
                                 <flux:select wire:model="records.{{ $enrollment->id }}.status" size="sm">
