@@ -11,7 +11,14 @@ test('multiple attendance records can exist for an enrollment', function () {
     $cohort = Cohort::factory()->create();
     $enrollment = Enrollment::factory()->create(['prospect_id' => $prospect->id, 'cohort_id' => $cohort->id]);
 
-    AttendanceRecord::factory()->count(3)->create(['enrollment_id' => $enrollment->id]);
+    AttendanceRecord::factory()
+        ->count(3)
+        ->sequence(
+            ['session_date' => '2026-03-01'],
+            ['session_date' => '2026-03-02'],
+            ['session_date' => '2026-03-03'],
+        )
+        ->create(['enrollment_id' => $enrollment->id]);
 
     expect(AttendanceRecord::where('enrollment_id', $enrollment->id)->count())->toBe(3);
 });
