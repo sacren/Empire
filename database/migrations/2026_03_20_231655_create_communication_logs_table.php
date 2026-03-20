@@ -13,6 +13,13 @@ return new class extends Migration
     {
         Schema::create('communication_logs', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('prospect_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('sent_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('channel');
+            $table->string('type');
+            $table->string('subject');
+            $table->text('body');
+            $table->timestamp('sent_at');
             $table->timestamps();
         });
     }
