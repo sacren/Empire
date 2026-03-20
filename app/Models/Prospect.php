@@ -74,4 +74,9 @@ class Prospect extends Model
     {
         return $this->hasMany(ProspectActivity::class)->latest();
     }
+
+    public function communicationLogs(): HasMany
+    {
+        return $this->hasMany(CommunicationLog::class)->latest();
+    }
 }
