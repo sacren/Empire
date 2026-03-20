@@ -30,6 +30,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Finance (admin only)
     Route::livewire('finance', 'pages::finance.index')->name('finance.index');
+
+    // Reports (admin only)
+    Route::livewire('reports', 'pages::reports.index')->name('reports.index');
 });
 
 // Public inquiry form
