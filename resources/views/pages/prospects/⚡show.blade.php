@@ -6,6 +6,7 @@ use App\Enums\EnrollmentStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\ProspectStatus;
 use App\Enums\UserRole;
+use App\Mail\EnrollmentConfirmed;
 use App\Models\Cohort;
 use App\Models\Enrollment;
 use App\Models\MilestoneRecord;
@@ -13,6 +14,7 @@ use App\Models\Payment;
 use App\Models\Prospect;
 use App\Models\ProspectActivity;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -102,12 +104,14 @@ new #[Title('Prospect')] class extends Component {
 
         $this->prospect->update(['status' => ProspectStatus::Enrolled]);
 
-        Enrollment::create([
+        $enrollment = Enrollment::create([
             'prospect_id' => $this->prospect->id,
             'cohort_id' => $this->enrollCohortId,
             'status' => 'pending',
             'enrolled_at' => now(),
         ]);
+
+        Mail::to($this->prospect->email)->send(new EnrollmentConfirmed($enrollment));
 
         $this->modal('enroll-prospect')->close();
         $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
