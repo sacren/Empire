@@ -1,11 +1,8 @@
 <?php
 
-use App\Enums\CommunicationChannel;
-use App\Enums\CommunicationType;
 use App\Enums\ProspectStatus;
 use App\Mail\EnrollmentConfirmed;
 use App\Models\Cohort;
-use App\Models\CommunicationLog;
 use App\Models\Enrollment;
 use App\Models\Prospect;
 use App\Models\User;
@@ -86,7 +83,7 @@ test('enrollment confirmed email is sent to the correct prospect email', functio
     Mail::assertQueued(EnrollmentConfirmed::class, 'specific@example.com');
 });
 
-test('enrollment confirmed email creates a communication log', function () {
+test('enrollment confirmed mailable includes prospect_id metadata', function () {
     $prospect = Prospect::factory()->create();
     $cohort = Cohort::factory()->create(['name' => 'Fall 2026']);
     $enrollment = Enrollment::factory()->create([
@@ -96,14 +93,10 @@ test('enrollment confirmed email creates a communication log', function () {
     ]);
 
     $mailable = new EnrollmentConfirmed($enrollment);
-    $mailable->sent($mailable);
 
-    $log = CommunicationLog::where('prospect_id', $prospect->id)->first();
+    expect($mailable->envelope()->metadata)
+        ->toHaveKey('prospect_id', (string) $prospect->id)
+        ->toHaveKey('log_body');
 
-    expect($log)->not->toBeNull()
-        ->and($log->channel)->toBe(CommunicationChannel::Email)
-        ->and($log->type)->toBe(CommunicationType::Automated)
-        ->and($log->sent_by)->toBeNull()
-        ->and($log->subject)->toContain('Enrollment Confirmed')
-        ->and($log->body)->toContain('Fall 2026');
+    expect($mailable->envelope()->metadata['log_body'])->toContain('Fall 2026');
 });

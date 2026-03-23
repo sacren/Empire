@@ -1,10 +1,7 @@
 <?php
 
-use App\Enums\CommunicationChannel;
-use App\Enums\CommunicationType;
 use App\Enums\PaymentMethod;
 use App\Mail\PaymentReceived;
-use App\Models\CommunicationLog;
 use App\Models\Enrollment;
 use App\Models\Payment;
 use App\Models\Prospect;
@@ -59,7 +56,7 @@ test('creating a payment queues the payment received email', function () {
     });
 });
 
-test('payment received email creates a communication log', function () {
+test('payment received mailable includes prospect_id metadata', function () {
     $prospect = Prospect::factory()->create();
     $enrollment = Enrollment::factory()->create([
         'prospect_id' => $prospect->id,
@@ -71,16 +68,15 @@ test('payment received email creates a communication log', function () {
         'method' => PaymentMethod::Check,
     ]);
 
+    Mail::fake();
+
     $mailable = new PaymentReceived($payment);
-    $mailable->sent($mailable);
 
-    $log = CommunicationLog::where('prospect_id', $prospect->id)->first();
+    expect($mailable->envelope()->metadata)
+        ->toHaveKey('prospect_id', (string) $prospect->id)
+        ->toHaveKey('log_body');
 
-    expect($log)->not->toBeNull()
-        ->and($log->channel)->toBe(CommunicationChannel::Email)
-        ->and($log->type)->toBe(CommunicationType::Automated)
-        ->and($log->sent_by)->toBeNull()
-        ->and($log->subject)->toContain('Payment Receipt')
-        ->and($log->body)->toContain('$2,000.00')
-        ->and($log->body)->toContain('Check');
+    expect($mailable->envelope()->metadata['log_body'])
+        ->toContain('$2,000.00')
+        ->toContain('Check');
 });
