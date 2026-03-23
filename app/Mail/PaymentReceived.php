@@ -2,9 +2,6 @@
 
 namespace App\Mail;
 
-use App\Enums\CommunicationChannel;
-use App\Enums\CommunicationType;
-use App\Models\CommunicationLog;
 use App\Models\Payment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,6 +23,10 @@ class PaymentReceived extends Mailable implements ShouldQueue
     {
         return new Envelope(
             subject: 'Payment Receipt — '.config('app.name'),
+            metadata: [
+                'prospect_id' => (string) $this->payment->enrollment->prospect_id,
+                'log_body' => 'Payment receipt for $'.number_format($this->payment->amount, 2).' via '.$this->payment->method->label(),
+            ],
         );
     }
 
@@ -51,21 +52,5 @@ class PaymentReceived extends Mailable implements ShouldQueue
     public function attachments(): array
     {
         return [];
-    }
-
-    /**
-     * Log the sent email to communication_logs.
-     */
-    public function sent(PaymentReceived $mail): void
-    {
-        CommunicationLog::create([
-            'prospect_id' => $this->payment->enrollment->prospect_id,
-            'sent_by' => null,
-            'channel' => CommunicationChannel::Email,
-            'type' => CommunicationType::Automated,
-            'subject' => $this->envelope()->subject,
-            'body' => 'Payment receipt for $'.number_format($this->payment->amount, 2).' via '.$this->payment->method->label(),
-            'sent_at' => now(),
-        ]);
     }
 }

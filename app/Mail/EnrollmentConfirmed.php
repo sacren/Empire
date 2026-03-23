@@ -2,9 +2,6 @@
 
 namespace App\Mail;
 
-use App\Enums\CommunicationChannel;
-use App\Enums\CommunicationType;
-use App\Models\CommunicationLog;
 use App\Models\Enrollment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,6 +23,10 @@ class EnrollmentConfirmed extends Mailable implements ShouldQueue
     {
         return new Envelope(
             subject: 'Enrollment Confirmed — '.config('app.name'),
+            metadata: [
+                'prospect_id' => (string) $this->enrollment->prospect_id,
+                'log_body' => 'Enrollment confirmation email sent for cohort: '.$this->enrollment->cohort->name,
+            ],
         );
     }
 
@@ -50,21 +51,5 @@ class EnrollmentConfirmed extends Mailable implements ShouldQueue
     public function attachments(): array
     {
         return [];
-    }
-
-    /**
-     * Log the sent email to communication_logs.
-     */
-    public function sent(EnrollmentConfirmed $mail): void
-    {
-        CommunicationLog::create([
-            'prospect_id' => $this->enrollment->prospect_id,
-            'sent_by' => null,
-            'channel' => CommunicationChannel::Email,
-            'type' => CommunicationType::Automated,
-            'subject' => $this->envelope()->subject,
-            'body' => 'Enrollment confirmation email sent for cohort: '.$this->enrollment->cohort->name,
-            'sent_at' => now(),
-        ]);
     }
 }
