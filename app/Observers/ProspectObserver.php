@@ -6,6 +6,7 @@ use App\Enums\ActivityAction;
 use App\Enums\ActivityType;
 use App\Models\Prospect;
 use App\Models\ProspectActivity;
+use App\Notifications\ProspectAssigned;
 
 class ProspectObserver
 {
@@ -34,6 +35,10 @@ class ProspectObserver
                 'to_value' => $prospect->assigned_to,
                 'performed_by' => auth()->id(),
             ]);
+
+            if ($prospect->assigned_to) {
+                $prospect->assignedTo->notify(new ProspectAssigned($prospect));
+            }
         }
     }
 }
