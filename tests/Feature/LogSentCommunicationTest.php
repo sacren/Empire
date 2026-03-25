@@ -79,3 +79,44 @@ test('listener ignores emails without prospect_id metadata', function () {
 
     expect(CommunicationLog::count())->toBe(0);
 });
+
+test('listener uses sent_by from metadata when present', function () {
+    $prospect = Prospect::factory()->create();
+    $user = \App\Models\User::factory()->staff()->create();
+
+    $event = createMessageSentEvent(
+        metadata: [
+            'prospect_id' => (string) $prospect->id,
+            'log_body' => 'Manual email body',
+            'sent_by' => (string) $user->id,
+        ],
+        subject: 'Manual Email',
+    );
+
+    $listener = new LogSentCommunication;
+    $listener->handle($event);
+
+    $log = CommunicationLog::where('prospect_id', $prospect->id)->first();
+
+    expect($log->sent_by)->toBe($user->id);
+});
+
+test('listener uses communication_type from metadata when present', function () {
+    $prospect = Prospect::factory()->create();
+
+    $event = createMessageSentEvent(
+        metadata: [
+            'prospect_id' => (string) $prospect->id,
+            'log_body' => 'Manual email body',
+            'communication_type' => 'manual',
+        ],
+        subject: 'Manual Email',
+    );
+
+    $listener = new LogSentCommunication;
+    $listener->handle($event);
+
+    $log = CommunicationLog::where('prospect_id', $prospect->id)->first();
+
+    expect($log->type)->toBe(CommunicationType::Manual);
+});
