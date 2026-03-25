@@ -34,4 +34,9 @@ class CohortPolicy
     {
         return $user->isAdmin();
     }
+
+    public function message(User $user, Cohort $cohort): bool
+    {
+        return $user->isAdmin();
+    }
 }
