@@ -49,9 +49,12 @@ new #[Title('Edit Cohort')] class extends Component {
 }; ?>
 
 <div>
-    <div class="flex items-center gap-3 mb-6">
-        <flux:button icon="arrow-left" :href="route('cohorts.index')" wire:navigate variant="ghost" />
-        <flux:heading size="xl">{{ __('Edit Cohort') }}</flux:heading>
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+            <flux:button icon="arrow-left" :href="route('cohorts.index')" wire:navigate variant="ghost" />
+            <flux:heading size="xl">{{ __('Edit Cohort') }}</flux:heading>
+        </div>
+        <flux:button :href="route('cohorts.message', $cohort)" wire:navigate icon="megaphone">{{ __('Send Announcement') }}</flux:button>
     </div>
 
     <div class="max-w-lg">
