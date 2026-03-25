@@ -20,6 +20,7 @@ class SendProspectEmail extends Mailable implements ShouldQueue
         public string $emailSubject,
         public string $emailBody,
         public int $sentById,
+        public CommunicationType $communicationType = CommunicationType::Manual,
     ) {
         $this->afterCommit();
     }
@@ -32,7 +33,7 @@ class SendProspectEmail extends Mailable implements ShouldQueue
                 'prospect_id' => (string) $this->prospect->id,
                 'log_body' => $this->emailBody,
                 'sent_by' => (string) $this->sentById,
-                'communication_type' => CommunicationType::Manual->value,
+                'communication_type' => $this->communicationType->value,
             ],
         );
     }
