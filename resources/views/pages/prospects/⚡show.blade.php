@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\ProspectStatus;
 use App\Enums\UserRole;
 use App\Mail\EnrollmentConfirmed;
+use App\Mail\SendProspectEmail;
 use App\Models\Cohort;
 use App\Models\Enrollment;
 use App\Models\MilestoneRecord;
@@ -34,6 +35,8 @@ new #[Title('Prospect')] class extends Component {
     public string $paymentNotes = '';
     public string $milestoneTitle = '';
     public string $milestoneNotes = '';
+    public string $emailSubject = '';
+    public string $emailBody = '';
     public string $graduationDate = '';
     public string $certificateNumber = '';
     public string $certificateIssuedAt = '';
@@ -77,6 +80,27 @@ new #[Title('Prospect')] class extends Component {
         $this->activityAction = '';
         $this->activityNotes = '';
         $this->prospect->refresh()->load('activities.performedBy');
+    }
+
+    public function sendEmail(): void
+    {
+        $this->authorize('update', $this->prospect);
+        $this->validate([
+            'emailSubject' => ['required', 'string', 'max:255'],
+            'emailBody' => ['required', 'string', 'max:10000'],
+        ]);
+
+        Mail::to($this->prospect->email)->send(new SendProspectEmail(
+            $this->prospect,
+            $this->emailSubject,
+            $this->emailBody,
+            auth()->id(),
+        ));
+
+        $this->emailSubject = '';
+        $this->emailBody = '';
+        $this->modal('send-email')->close();
+        session()->flash('emailSent', true);
     }
 
     public function updateStatus(): void
@@ -228,6 +252,11 @@ new #[Title('Prospect')] class extends Component {
             </div>
         </div>
         <div class="flex gap-2">
+            @can('update', $prospect)
+                <flux:modal.trigger name="send-email">
+                    <flux:button icon="envelope" :loading="false">{{ __('Send Email') }}</flux:button>
+                </flux:modal.trigger>
+            @endcan
             @can('enroll', $prospect)
                 <flux:modal.trigger name="enroll-prospect">
                     <flux:button variant="primary" icon="academic-cap">{{ __('Enroll') }}</flux:button>
@@ -240,6 +269,40 @@ new #[Title('Prospect')] class extends Component {
             @endif
         </div>
     </div>
+
+    {{-- Flash message --}}
+    @if (session('emailSent'))
+        <flux:badge color="green" size="lg" class="w-full justify-center">{{ __('Email queued for delivery.') }}</flux:badge>
+    @endif
+
+    {{-- Send Email Modal --}}
+    <flux:modal name="send-email" class="max-w-lg">
+        <form wire:submit="sendEmail" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Send Email') }}</flux:heading>
+                <flux:subheading>{{ __('Compose and send an email to :name.', ['name' => $prospect->name]) }}</flux:subheading>
+            </div>
+
+            <flux:field>
+                <flux:label>{{ __('Subject') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:input wire:model="emailSubject" placeholder="{{ __('Email subject...') }}" />
+                <flux:error name="emailSubject" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>{{ __('Body') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:textarea wire:model="emailBody" rows="6" placeholder="{{ __('Write your message...') }}" />
+                <flux:error name="emailBody" />
+            </flux:field>
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button>{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary" icon="paper-airplane">{{ __('Send') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 
     {{-- Enroll Modal --}}
     <flux:modal name="enroll-prospect" class="max-w-lg">
