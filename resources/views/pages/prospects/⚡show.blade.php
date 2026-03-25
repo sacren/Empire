@@ -573,6 +573,34 @@ new #[Title('Prospect')] class extends Component {
                     @endforelse
                 </div>
             </div>
+
+            {{-- Communications --}}
+            <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6">
+                <flux:heading class="mb-4">{{ __('Communications') }}</flux:heading>
+                <div class="flex flex-col gap-3">
+                    @forelse ($this->communicationLogs as $log)
+                        <div wire:key="comm-{{ $log->id }}" x-data="{ open: false }" class="rounded-lg border border-zinc-200 dark:border-zinc-700">
+                            <button type="button" @click="open = !open" class="w-full px-4 py-3 text-left">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <flux:badge color="{{ $log->type->color() }}" size="sm">{{ $log->type->label() }}</flux:badge>
+                                    <span class="font-medium text-sm text-zinc-900 dark:text-zinc-100 truncate">{{ $log->subject }}</span>
+                                    <span class="text-xs text-zinc-400 ml-auto shrink-0">{{ $log->sent_at->format('M j, Y g:i a') }}</span>
+                                </div>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <flux:text class="text-xs text-zinc-500">{{ $log->channel->label() }}</flux:text>
+                                    <flux:text class="text-xs text-zinc-400">·</flux:text>
+                                    <flux:text class="text-xs text-zinc-500">{{ $log->sentBy?->name ?? __('System') }}</flux:text>
+                                </div>
+                            </button>
+                            <div x-show="open" x-cloak class="px-4 pb-3 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                                <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">{!! nl2br(e($log->body)) !!}</flux:text>
+                            </div>
+                        </div>
+                    @empty
+                        <flux:text class="text-zinc-500">{{ __('No communications recorded yet.') }}</flux:text>
+                    @endforelse
+                </div>
+            </div>
         </div>
 
         {{-- Right: Actions --}}
