@@ -125,3 +125,15 @@ test('it includes correct metadata in envelope', function () {
         ->toHaveKey('sent_by', (string) $userId)
         ->toHaveKey('communication_type', CommunicationType::Manual->value);
 });
+
+test('it uses provided communication type in metadata', function () {
+    $prospect = Prospect::factory()->create();
+    $userId = User::factory()->admin()->create()->id;
+
+    $mailable = new SendProspectEmail($prospect, 'Announcement', 'Cohort update', $userId, CommunicationType::Bulk);
+
+    $metadata = $mailable->envelope()->metadata;
+
+    expect($metadata)
+        ->toHaveKey('communication_type', CommunicationType::Bulk->value);
+});
