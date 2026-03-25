@@ -20,11 +20,14 @@ class LogSentCommunication
             return;
         }
 
+        $sentBy = $this->getMetadata($headers, 'sent_by');
+        $communicationType = $this->getMetadata($headers, 'communication_type');
+
         CommunicationLog::create([
             'prospect_id' => (int) $prospectId,
-            'sent_by' => null,
+            'sent_by' => $sentBy ? (int) $sentBy : null,
             'channel' => CommunicationChannel::Email,
-            'type' => CommunicationType::Automated,
+            'type' => $communicationType ? (CommunicationType::tryFrom($communicationType) ?? CommunicationType::Automated) : CommunicationType::Automated,
             'subject' => $event->message->getSubject(),
             'body' => $this->getMetadata($headers, 'log_body') ?? '',
             'sent_at' => now(),
