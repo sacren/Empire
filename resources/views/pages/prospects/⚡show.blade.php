@@ -62,6 +62,12 @@ new #[Title('Prospect')] class extends Component {
         return Cohort::query()->where('is_active', true)->orderBy('start_date')->get();
     }
 
+    #[Computed]
+    public function communicationLogs(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->prospect->communicationLogs()->with('sentBy')->get();
+    }
+
     public function logActivity(): void
     {
         $this->validate([
