@@ -2,6 +2,8 @@
 
 use App\Enums\ActivityAction;
 use App\Enums\ActivityType;
+use App\Enums\DocumentStatus;
+use App\Enums\DocumentType;
 use App\Enums\EnrollmentStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\ProspectStatus;
@@ -9,6 +11,7 @@ use App\Enums\UserRole;
 use App\Mail\EnrollmentConfirmed;
 use App\Mail\SendProspectEmail;
 use App\Models\Cohort;
+use App\Models\Document;
 use App\Models\Enrollment;
 use App\Models\MilestoneRecord;
 use App\Models\Payment;
@@ -16,11 +19,16 @@ use App\Models\Prospect;
 use App\Models\ProspectActivity;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 new #[Title('Prospect')] class extends Component {
+    use WithFileUploads;
+
     public Prospect $prospect;
 
     public string $activityAction = '';
@@ -40,6 +48,9 @@ new #[Title('Prospect')] class extends Component {
     public string $graduationDate = '';
     public string $certificateNumber = '';
     public string $certificateIssuedAt = '';
+    public $documentFile = null;
+    public string $documentType = '';
+    public string $documentNotes = '';
 
     public function mount(Prospect $prospect): void
     {
@@ -66,6 +77,71 @@ new #[Title('Prospect')] class extends Component {
     public function communicationLogs(): \Illuminate\Database\Eloquent\Collection
     {
         return $this->prospect->communicationLogs()->with('sentBy')->get();
+    }
+
+    #[Computed]
+    public function documents(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->prospect->documents()->with(['uploadedBy', 'reviewedBy'])->get();
+    }
+
+    public function uploadDocument(): void
+    {
+        $this->authorize('uploadDocument', $this->prospect);
+        $this->validate([
+            'documentFile' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,doc,docx'],
+            'documentType' => ['required', 'string', Rule::in(array_column(DocumentType::cases(), 'value'))],
+        ]);
+
+        $path = $this->documentFile->store('documents/' . $this->prospect->id, 'local');
+
+        $enrollmentId = null;
+        if (in_array($this->documentType, [DocumentType::EnrollmentAgreement->value, DocumentType::Certificate->value]) && $this->prospect->enrollment) {
+            $enrollmentId = $this->prospect->enrollment->id;
+        }
+
+        Document::create([
+            'prospect_id' => $this->prospect->id,
+            'enrollment_id' => $enrollmentId,
+            'uploaded_by' => auth()->id(),
+            'type' => $this->documentType,
+            'status' => DocumentStatus::Pending,
+            'original_filename' => $this->documentFile->getClientOriginalName(),
+            'disk_path' => $path,
+            'mime_type' => $this->documentFile->getClientMimeType(),
+            'file_size' => $this->documentFile->getSize(),
+            'notes' => $this->documentNotes ?: null,
+        ]);
+
+        $this->documentFile = null;
+        $this->documentType = '';
+        $this->documentNotes = '';
+        $this->modal('upload-document')->close();
+        $this->prospect->refresh();
+    }
+
+    public function reviewDocument(int $id, string $status): void
+    {
+        $this->authorize('reviewDocument', $this->prospect);
+
+        $document = Document::findOrFail($id);
+        $document->update([
+            'status' => $status,
+            'reviewed_at' => now(),
+            'reviewed_by' => auth()->id(),
+        ]);
+
+        $this->prospect->refresh();
+    }
+
+    public function deleteDocument(int $id): void
+    {
+        $this->authorize('deleteDocument', $this->prospect);
+
+        $document = Document::findOrFail($id);
+        $document->delete();
+
+        $this->prospect->refresh();
     }
 
     public function logActivity(): void
@@ -465,6 +541,41 @@ new #[Title('Prospect')] class extends Component {
         </form>
     </flux:modal>
 
+    {{-- Upload Document Modal --}}
+    <flux:modal name="upload-document" class="max-w-md">
+        <form wire:submit="uploadDocument" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Upload Document') }}</flux:heading>
+                <flux:subheading>{{ __('Attach a file to this prospect record.') }}</flux:subheading>
+            </div>
+            <flux:field>
+                <flux:label>{{ __('Document Type') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <flux:select wire:model="documentType">
+                    <flux:select.option value="">{{ __('Select type...') }}</flux:select.option>
+                    @foreach (DocumentType::cases() as $type)
+                        <flux:select.option value="{{ $type->value }}">{{ $type->label() }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="documentType" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('File') }} <span class="text-red-400 ms-0.5" aria-hidden="true">*</span></flux:label>
+                <input type="file" wire:model="documentFile" class="block w-full text-sm text-zinc-500 dark:text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 dark:file:bg-zinc-700 dark:file:text-zinc-300 dark:hover:file:bg-zinc-600" />
+                <flux:error name="documentFile" />
+            </flux:field>
+            <flux:field>
+                <flux:label>{{ __('Notes') }}</flux:label>
+                <flux:textarea wire:model="documentNotes" rows="2" />
+            </flux:field>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button>{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">{{ __('Upload') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {{-- Left: Prospect Details --}}
         <div class="lg:col-span-2 flex flex-col gap-6">
@@ -762,6 +873,53 @@ new #[Title('Prospect')] class extends Component {
                     </div>
                 </div>
             @endif
+
+            {{-- Documents --}}
+            <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <flux:heading>{{ __('Documents') }}</flux:heading>
+                    @can('uploadDocument', $prospect)
+                        <flux:modal.trigger name="upload-document">
+                            <flux:button size="xs" icon="plus">{{ __('Upload') }}</flux:button>
+                        </flux:modal.trigger>
+                    @endcan
+                </div>
+                @if ($this->documents->isNotEmpty())
+                    <div class="flex flex-col gap-3">
+                        @foreach ($this->documents as $doc)
+                            <div wire:key="doc-{{ $doc->id }}" class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0 flex-1">
+                                        <a href="{{ route('documents.download', $doc) }}" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate block">{{ $doc->original_filename }}</a>
+                                        <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                                            <flux:badge color="{{ $doc->type->color() }}" size="sm">{{ $doc->type->label() }}</flux:badge>
+                                            <flux:badge color="{{ $doc->status->color() }}" size="sm">{{ $doc->status->label() }}</flux:badge>
+                                        </div>
+                                        <flux:text class="text-xs text-zinc-400 mt-1">{{ $doc->uploadedBy->name }} · {{ $doc->created_at->format('M j, Y') }}</flux:text>
+                                        @if ($doc->notes)
+                                            <flux:text class="text-xs text-zinc-500 mt-1">{{ $doc->notes }}</flux:text>
+                                        @endif
+                                        @if ($doc->reviewed_at)
+                                            <flux:text class="text-xs text-zinc-400 mt-1">{{ __('Reviewed by :name on :date', ['name' => $doc->reviewedBy?->name, 'date' => $doc->reviewed_at->format('M j, Y')]) }}</flux:text>
+                                        @endif
+                                    </div>
+                                </div>
+                                @if (auth()->user()->isAdmin())
+                                    <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                                        @if (in_array($doc->status, [DocumentStatus::Pending, DocumentStatus::Received]))
+                                            <flux:button size="xs" wire:click="reviewDocument({{ $doc->id }}, '{{ DocumentStatus::Approved->value }}')" :loading="false">{{ __('Approve') }}</flux:button>
+                                            <flux:button size="xs" wire:click="reviewDocument({{ $doc->id }}, '{{ DocumentStatus::Rejected->value }}')" :loading="false">{{ __('Reject') }}</flux:button>
+                                        @endif
+                                        <flux:button size="xs" variant="danger" wire:click="deleteDocument({{ $doc->id }})" wire:confirm="{{ __('Are you sure you want to delete this document?') }}" class="ml-auto" :loading="false">{{ __('Delete') }}</flux:button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <flux:text class="text-xs text-zinc-400">{{ __('No documents uploaded.') }}</flux:text>
+                @endif
+            </div>
 
             {{-- Assignment (admin only) --}}
             @if (auth()->user()->isAdmin())
