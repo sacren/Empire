@@ -1,6 +1,9 @@
 <?php
 
+use App\Models\Document;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -28,6 +31,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Staff (admin only)
     Route::livewire('staff', 'pages::staff.index')->name('staff.index');
     Route::livewire('staff/create', 'pages::staff.create')->name('staff.create');
+
+    // Documents
+    Route::get('documents/{document}/download', function (Document $document) {
+        Gate::authorize('view', $document->prospect);
+
+        return Storage::disk('local')->download($document->disk_path, $document->original_filename);
+    })->name('documents.download');
 
     // Finance (admin only)
     Route::livewire('finance', 'pages::finance.index')->name('finance.index');
