@@ -83,4 +83,32 @@ class ProspectPolicy
 
         return $prospect->assigned_to === $user->id;
     }
+
+    /**
+     * Admins can upload documents for any prospect; staff can upload for assigned prospects.
+     */
+    public function uploadDocument(User $user, Prospect $prospect): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $prospect->assigned_to === $user->id;
+    }
+
+    /**
+     * Only admins can review (approve/reject) documents.
+     */
+    public function reviewDocument(User $user, Prospect $prospect): bool
+    {
+        return $user->isAdmin();
+    }
+
+    /**
+     * Only admins can delete documents.
+     */
+    public function deleteDocument(User $user, Prospect $prospect): bool
+    {
+        return $user->isAdmin();
+    }
 }
