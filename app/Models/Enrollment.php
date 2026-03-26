@@ -60,6 +60,11 @@ class Enrollment extends Model
         return $this->hasMany(MilestoneRecord::class)->oldest();
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class)->latest();
+    }
+
     public function totalPaid(): float
     {
         return (float) $this->payments()->sum('amount');
