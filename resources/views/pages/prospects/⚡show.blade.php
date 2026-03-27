@@ -93,6 +93,10 @@ new #[Title('Prospect')] class extends Component {
             'documentType' => ['required', 'string', Rule::in(array_column(DocumentType::cases(), 'value'))],
         ]);
 
+        $originalName = $this->documentFile->getClientOriginalName();
+        $mimeType = $this->documentFile->getClientMimeType();
+        $fileSize = $this->documentFile->getSize();
+
         $path = $this->documentFile->store('documents/' . $this->prospect->id, 'local');
 
         $enrollmentId = null;
@@ -106,10 +110,10 @@ new #[Title('Prospect')] class extends Component {
             'uploaded_by' => auth()->id(),
             'type' => $this->documentType,
             'status' => DocumentStatus::Pending,
-            'original_filename' => $this->documentFile->getClientOriginalName(),
+            'original_filename' => $originalName,
             'disk_path' => $path,
-            'mime_type' => $this->documentFile->getClientMimeType(),
-            'file_size' => $this->documentFile->getSize(),
+            'mime_type' => $mimeType,
+            'file_size' => $fileSize,
             'notes' => $this->documentNotes ?: null,
         ]);
 
