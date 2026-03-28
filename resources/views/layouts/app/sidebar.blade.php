@@ -22,8 +22,8 @@
                         {{ __('Prospects') }}
                     </flux:sidebar.item>
                     @if (auth()->user()->isAdmin())
-                        <flux:sidebar.item icon="academic-cap" :href="route('cohorts.index')" :current="request()->routeIs('cohorts.*')" wire:navigate>
-                            {{ __('Cohorts') }}
+                        <flux:sidebar.item icon="academic-cap" :href="route('cohorts.index')" :current="request()->routeIs('cohorts.*') || request()->routeIs('programs.*')" wire:navigate>
+                            {{ __('Programs') }}
                         </flux:sidebar.item>
                     @endif
                 </flux:sidebar.group>
