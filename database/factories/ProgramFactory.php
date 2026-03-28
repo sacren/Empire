@@ -15,6 +15,7 @@ class ProgramFactory extends Factory
             'name' => fake()->unique()->words(3, true),
             'description' => fake()->sentence(),
             'is_active' => true,
+            'default_tuition' => fake()->optional()->randomFloat(2, 500, 15000),
         ];
     }
 
