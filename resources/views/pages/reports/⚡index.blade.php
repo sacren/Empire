@@ -4,6 +4,7 @@ use App\Enums\ProspectStatus;
 use App\Enums\UserRole;
 use App\Models\Cohort;
 use App\Models\Enrollment;
+use App\Models\Program;
 use App\Models\User;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -17,9 +18,18 @@ new #[Title('Reports')] class extends Component {
     #[Url]
     public string $period = 'all';
 
+    #[Url]
+    public string $programFilter = '';
+
     public function mount(): void
     {
         abort_unless(auth()->user()->isAdmin(), 403);
+    }
+
+    #[Computed]
+    public function programs(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Program::query()->where('is_active', true)->orderBy('name')->get();
     }
 
     /**
@@ -35,12 +45,23 @@ new #[Title('Reports')] class extends Component {
         };
     }
 
+    protected function scopeEnrollmentByProgram($query): mixed
+    {
+        return $query->when($this->programFilter, fn ($q) => $q->whereHas('cohort', fn ($cq) => $cq->where('program_id', $this->programFilter)));
+    }
+
+    protected function scopeCohortByProgram($query): mixed
+    {
+        return $query->when($this->programFilter, fn ($q) => $q->where('program_id', $this->programFilter));
+    }
+
     // ── Enrollment Trends ──────────────────────────────────────────────
 
     #[Computed]
     public function enrollmentTrends(): \Illuminate\Support\Collection
     {
         $query = Enrollment::query();
+        $this->scopeEnrollmentByProgram($query);
 
         $range = $this->periodRange();
         if ($range['start']) {
@@ -60,13 +81,16 @@ new #[Title('Reports')] class extends Component {
         $range = $this->periodRange();
 
         $query = Enrollment::query();
+        $this->scopeEnrollmentByProgram($query);
         if ($range['start']) {
             $query->where('enrolled_at', '>=', $range['start']);
         }
 
         return [
             'total' => $query->count(),
-            'this_month' => Enrollment::query()->where('enrolled_at', '>=', now()->startOfMonth())->count(),
+            'this_month' => $this->scopeEnrollmentByProgram(
+                Enrollment::query()->where('enrolled_at', '>=', now()->startOfMonth())
+            )->count(),
         ];
     }
 
@@ -77,7 +101,7 @@ new #[Title('Reports')] class extends Component {
     {
         $range = $this->periodRange();
 
-        return Cohort::query()
+        return $this->scopeCohortByProgram(Cohort::query())
             ->whereHas('enrollments')
             ->with(['enrollments' => function ($q) use ($range) {
                 $q->with(['payments' => function ($pq) use ($range) {
@@ -119,7 +143,7 @@ new #[Title('Reports')] class extends Component {
     #[Computed]
     public function cohortUtilization(): \Illuminate\Database\Eloquent\Collection
     {
-        return Cohort::query()
+        return $this->scopeCohortByProgram(Cohort::query())
             ->where('is_active', true)
             ->withCount('enrollments')
             ->orderBy('start_date')
@@ -136,6 +160,7 @@ new #[Title('Reports')] class extends Component {
             ->where('is_active', true)
             ->with(['assignedProspects' => function ($q) {
                 $q->select('id', 'assigned_to', 'status');
+                $q->when($this->programFilter, fn ($sq) => $sq->whereHas('cohort', fn ($cq) => $cq->where('program_id', $this->programFilter)));
             }])
             ->orderBy('name')
             ->get()
@@ -162,7 +187,7 @@ new #[Title('Reports')] class extends Component {
     #[Computed]
     public function graduationRates(): \Illuminate\Support\Collection
     {
-        return Cohort::query()
+        return $this->scopeCohortByProgram(Cohort::query())
             ->whereHas('enrollments')
             ->withCount('enrollments')
             ->withCount(['enrollments as graduated_count' => function ($q) {
@@ -196,9 +221,17 @@ new #[Title('Reports')] class extends Component {
 }; ?>
 
 <div>
-    <div class="mb-6">
-        <flux:heading size="xl">{{ __('Reports') }}</flux:heading>
-        <flux:subheading>{{ __('Data-driven insights for leadership decisions.') }}</flux:subheading>
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <flux:heading size="xl">{{ __('Reports') }}</flux:heading>
+            <flux:subheading>{{ __('Data-driven insights for leadership decisions.') }}</flux:subheading>
+        </div>
+        <flux:select wire:model.live="programFilter" class="w-48">
+            <flux:select.option value="">{{ __('All Programs') }}</flux:select.option>
+            @foreach ($this->programs as $program)
+                <flux:select.option value="{{ $program->id }}">{{ $program->name }}</flux:select.option>
+            @endforeach
+        </flux:select>
     </div>
 
     {{-- Tab navigation --}}
