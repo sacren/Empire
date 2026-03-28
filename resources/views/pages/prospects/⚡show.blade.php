@@ -55,7 +55,7 @@ new #[Title('Prospect')] class extends Component {
     public function mount(Prospect $prospect): void
     {
         $this->authorize('view', $prospect);
-        $this->prospect = $prospect->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+        $this->prospect = $prospect->load(['cohort.program', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
         $this->newStatus = $prospect->status->value;
         $this->newAssignedTo = (string) ($prospect->assigned_to ?? '');
         $this->enrollCohortId = (string) ($prospect->cohort_id ?? '');
@@ -70,7 +70,7 @@ new #[Title('Prospect')] class extends Component {
     #[Computed]
     public function activeCohorts(): \Illuminate\Database\Eloquent\Collection
     {
-        return Cohort::query()->where('is_active', true)->orderBy('start_date')->get();
+        return Cohort::query()->with('program')->where('is_active', true)->orderBy('start_date')->get();
     }
 
     #[Computed]
@@ -212,11 +212,14 @@ new #[Title('Prospect')] class extends Component {
         $this->authorize('enroll', $this->prospect);
         $this->validate(['enrollCohortId' => ['required', 'exists:cohorts,id']]);
 
+        $cohort = Cohort::with('program')->findOrFail($this->enrollCohortId);
+
         $this->prospect->update(['status' => ProspectStatus::Enrolled]);
 
         $enrollment = Enrollment::create([
             'prospect_id' => $this->prospect->id,
             'cohort_id' => $this->enrollCohortId,
+            'amount_owed' => $cohort->program->default_tuition,
             'status' => 'pending',
             'enrolled_at' => now(),
         ]);
@@ -224,7 +227,7 @@ new #[Title('Prospect')] class extends Component {
         Mail::to($this->prospect->email)->send(new EnrollmentConfirmed($enrollment));
 
         $this->modal('enroll-prospect')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+        $this->prospect->refresh()->load(['cohort.program', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
         $this->newStatus = $this->prospect->status->value;
     }
 
@@ -238,7 +241,7 @@ new #[Title('Prospect')] class extends Component {
         $this->prospect->enrollment->update(['amount_owed' => $this->tuitionAmount]);
         $this->prospect->enrollment->recalculateStatus();
         $this->modal('set-tuition')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+        $this->prospect->refresh()->load(['cohort.program', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
     }
 
     public function addPayment(): void
@@ -265,7 +268,7 @@ new #[Title('Prospect')] class extends Component {
         $this->paymentDate = '';
         $this->paymentNotes = '';
         $this->modal('add-payment')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+        $this->prospect->refresh()->load(['cohort.program', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
     }
 
     public function addMilestone(): void
@@ -284,7 +287,7 @@ new #[Title('Prospect')] class extends Component {
         $this->milestoneTitle = '';
         $this->milestoneNotes = '';
         $this->modal('add-milestone')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+        $this->prospect->refresh()->load(['cohort.program', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
     }
 
     public function completeMilestone(int $id): void
@@ -294,7 +297,7 @@ new #[Title('Prospect')] class extends Component {
         $milestone = MilestoneRecord::findOrFail($id);
         $milestone->update(['completed_at' => now()]);
 
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+        $this->prospect->refresh()->load(['cohort.program', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
     }
 
     public function graduate(): void
@@ -315,7 +318,7 @@ new #[Title('Prospect')] class extends Component {
         $this->prospect->update(['status' => ProspectStatus::Graduated]);
 
         $this->modal('graduate-student')->close();
-        $this->prospect->refresh()->load(['cohort', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
+        $this->prospect->refresh()->load(['cohort.program', 'assignedTo', 'activities.performedBy', 'enrollment.payments', 'enrollment.attendanceRecords', 'enrollment.milestoneRecords']);
         $this->newStatus = $this->prospect->status->value;
     }
 
@@ -403,7 +406,7 @@ new #[Title('Prospect')] class extends Component {
                 <flux:select wire:model.live="enrollCohortId">
                     <flux:select.option value="">{{ __('Select a cohort...') }}</flux:select.option>
                     @foreach ($this->activeCohorts as $cohort)
-                        <flux:select.option value="{{ $cohort->id }}">{{ $cohort->name }} — {{ $cohort->start_date->format('M j, Y') }}</flux:select.option>
+                        <flux:select.option value="{{ $cohort->id }}">{{ $cohort->program->name }}: {{ $cohort->name }} — {{ $cohort->start_date->format('M j, Y') }}</flux:select.option>
                     @endforeach
                 </flux:select>
                 <flux:error name="enrollCohortId" />
@@ -412,9 +415,16 @@ new #[Title('Prospect')] class extends Component {
             @if ($enrollCohortId)
                 @php $selectedCohort = $this->activeCohorts->firstWhere('id', $enrollCohortId); @endphp
                 @if ($selectedCohort)
-                    <flux:text class="text-sm text-zinc-500">
-                        {{ __('Start date') }}: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $selectedCohort->start_date->format('l, F j, Y') }}</span>
-                    </flux:text>
+                    <div class="space-y-1">
+                        <flux:text class="text-sm text-zinc-500">
+                            {{ __('Start date') }}: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $selectedCohort->start_date->format('l, F j, Y') }}</span>
+                        </flux:text>
+                        @if ($selectedCohort->program->default_tuition)
+                            <flux:text class="text-sm text-zinc-500">
+                                {{ __('Default tuition') }}: <span class="font-medium text-zinc-700 dark:text-zinc-300">${{ number_format($selectedCohort->program->default_tuition, 2) }}</span>
+                            </flux:text>
+                        @endif
+                    </div>
                 @endif
             @endif
 
@@ -613,7 +623,7 @@ new #[Title('Prospect')] class extends Component {
             <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6">
                 <flux:heading class="mb-4">{{ __('Background') }}</flux:heading>
                 <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div><flux:text class="text-xs text-zinc-500">{{ __('Cohort') }}</flux:text><flux:text>{{ $prospect->cohort ? $prospect->cohort->name.' — '.$prospect->cohort->start_date->format('M j, Y') : '—' }}</flux:text></div>
+                    <div><flux:text class="text-xs text-zinc-500">{{ __('Cohort') }}</flux:text><flux:text>{{ $prospect->cohort ? $prospect->cohort->program->name.': '.$prospect->cohort->name.' — '.$prospect->cohort->start_date->format('M j, Y') : '—' }}</flux:text></div>
                     <div><flux:text class="text-xs text-zinc-500">{{ __('Education Level') }}</flux:text><flux:text>{{ $prospect->highest_education_level?->label() ?? '—' }}</flux:text></div>
                     <div><flux:text class="text-xs text-zinc-500">{{ __('Employment Status') }}</flux:text><flux:text>{{ $prospect->employment_status?->label() ?? '—' }}</flux:text></div>
                     <div><flux:text class="text-xs text-zinc-500">{{ __('Entry Point') }}</flux:text><flux:text>{{ $prospect->entry_point->label() }}</flux:text></div>
