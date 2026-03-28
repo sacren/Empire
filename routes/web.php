@@ -21,6 +21,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('prospects/create', 'pages::prospects.create')->name('prospects.create');
     Route::livewire('prospects/{prospect}', 'pages::prospects.show')->name('prospects.show');
 
+    // Programs
+    Route::livewire('programs/create', 'pages::programs.create')->name('programs.create');
+    Route::livewire('programs/{program}/edit', 'pages::programs.edit')->name('programs.edit');
+
     // Cohorts
     Route::livewire('cohorts', 'pages::cohorts.index')->name('cohorts.index');
     Route::livewire('cohorts/create', 'pages::cohorts.create')->name('cohorts.create');
