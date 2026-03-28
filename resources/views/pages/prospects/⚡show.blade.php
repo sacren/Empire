@@ -214,7 +214,7 @@ new #[Title('Prospect')] class extends Component {
 
         $cohort = Cohort::with('program')->findOrFail($this->enrollCohortId);
 
-        $this->prospect->update(['status' => ProspectStatus::Enrolled]);
+        $this->prospect->update(['status' => ProspectStatus::Enrolled, 'cohort_id' => $cohort->id]);
 
         $enrollment = Enrollment::create([
             'prospect_id' => $this->prospect->id,
