@@ -6,7 +6,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
-new #[Title('Cohorts')] class extends Component {
+new #[Title('Programs & Cohorts')] class extends Component {
     public function mount(): void
     {
         $this->authorize('viewAny', Cohort::class);
@@ -15,7 +15,7 @@ new #[Title('Cohorts')] class extends Component {
     #[Computed]
     public function programs(): \Illuminate\Database\Eloquent\Collection
     {
-        return Program::query()->with(['cohorts' => fn ($q) => $q->orderBy('start_date')])->where('is_active', true)->get();
+        return Program::query()->with(['cohorts' => fn ($q) => $q->orderBy('start_date')])->orderBy('name')->get();
     }
 
     public function toggleCohort(int $cohortId): void
@@ -35,15 +35,29 @@ new #[Title('Cohorts')] class extends Component {
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <flux:heading size="xl">{{ __('Cohorts') }}</flux:heading>
-        <flux:button variant="primary" icon="plus" :href="route('cohorts.create')" wire:navigate>
-            {{ __('Add Cohort') }}
-        </flux:button>
+        <flux:heading size="xl">{{ __('Programs & Cohorts') }}</flux:heading>
+        <div class="flex items-center gap-2">
+            <flux:button icon="plus" :href="route('programs.create')" wire:navigate>
+                {{ __('Add Program') }}
+            </flux:button>
+            <flux:button variant="primary" icon="plus" :href="route('cohorts.create')" wire:navigate>
+                {{ __('Add Cohort') }}
+            </flux:button>
+        </div>
     </div>
 
     @forelse ($this->programs as $program)
-        <div class="mb-6">
-            <flux:heading class="mb-3">{{ $program->name }}</flux:heading>
+        <div class="mb-6" wire:key="program-{{ $program->id }}">
+            <div class="flex items-center gap-3 mb-3">
+                <flux:heading>{{ $program->name }}</flux:heading>
+                @unless ($program->is_active)
+                    <flux:badge color="zinc" size="sm">{{ __('Inactive') }}</flux:badge>
+                @endunless
+                @if ($program->default_tuition)
+                    <flux:text class="text-sm text-zinc-500">{{ __('Default tuition: $:amount', ['amount' => number_format($program->default_tuition, 2)]) }}</flux:text>
+                @endif
+                <flux:button size="sm" :href="route('programs.edit', $program)" wire:navigate>{{ __('Edit') }}</flux:button>
+            </div>
             <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
                 <table class="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
                     <thead class="bg-zinc-50 dark:bg-zinc-800">
