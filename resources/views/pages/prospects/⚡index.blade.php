@@ -2,9 +2,11 @@
 
 use App\Enums\ProspectStatus;
 use App\Enums\UserRole;
+use App\Models\Program;
 use App\Models\Prospect;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -13,6 +15,10 @@ new #[Title('Prospects')] class extends Component {
 
     public string $search = '';
     public string $statusFilter = '';
+
+    #[Url]
+    public string $programFilter = '';
+
     public string $sortField = 'created_at';
     public string $sortDirection = 'desc';
 
@@ -22,6 +28,11 @@ new #[Title('Prospects')] class extends Component {
     }
 
     public function updatingStatusFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingProgramFilter(): void
     {
         $this->resetPage();
     }
@@ -38,13 +49,20 @@ new #[Title('Prospects')] class extends Component {
     }
 
     #[Computed]
+    public function programs(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Program::query()->where('is_active', true)->orderBy('name')->get();
+    }
+
+    #[Computed]
     public function prospects(): \Illuminate\Pagination\LengthAwarePaginator
     {
         $user = auth()->user();
 
         return Prospect::query()
-            ->with(['cohort', 'assignedTo'])
+            ->with(['cohort.program', 'assignedTo'])
             ->when($user->role === UserRole::Staff, fn ($q) => $q->where('assigned_to', $user->id))
+            ->when($this->programFilter, fn ($q) => $q->whereHas('cohort', fn ($cq) => $cq->where('program_id', $this->programFilter)))
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', "%{$this->search}%")
                   ->orWhere('email', 'like', "%{$this->search}%")
@@ -70,6 +88,12 @@ new #[Title('Prospects')] class extends Component {
         <div class="flex-1">
             <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" placeholder="{{ __('Search by name, email or phone...') }}" />
         </div>
+        <flux:select wire:model.live="programFilter" class="sm:w-48">
+            <flux:select.option value="">{{ __('All Programs') }}</flux:select.option>
+            @foreach ($this->programs as $program)
+                <flux:select.option value="{{ $program->id }}">{{ $program->name }}</flux:select.option>
+            @endforeach
+        </flux:select>
         <flux:select wire:model.live="statusFilter" class="sm:w-48">
             <flux:select.option value="">{{ __('All Statuses') }}</flux:select.option>
             @foreach (ProspectStatus::cases() as $status)
@@ -107,7 +131,7 @@ new #[Title('Prospects')] class extends Component {
                             <flux:badge color="{{ $prospect->status->color() }}" size="sm">{{ $prospect->status->label() }}</flux:badge>
                         </td>
                         <td class="px-4 py-3">
-                            <flux:text class="text-sm">{{ $prospect->cohort?->name ?? '—' }}</flux:text>
+                            <flux:text class="text-sm">{{ $prospect->cohort ? $prospect->cohort->program->name.': '.$prospect->cohort->name : '—' }}</flux:text>
                         </td>
                         @if (auth()->user()->isAdmin())
                             <td class="px-4 py-3">
