@@ -15,12 +15,14 @@ class Program extends Model
         'name',
         'description',
         'is_active',
+        'default_tuition',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'default_tuition' => 'decimal:2',
         ];
     }
 
