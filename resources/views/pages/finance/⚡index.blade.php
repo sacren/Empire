@@ -1,15 +1,26 @@
 <?php
 
 use App\Enums\ProspectStatus;
+use App\Models\Program;
 use App\Models\Prospect;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new #[Title('Finance')] class extends Component {
+    #[Url]
+    public string $programFilter = '';
+
     public function mount(): void
     {
         abort_unless(auth()->user()->isAdmin(), 403);
+    }
+
+    #[Computed]
+    public function programs(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Program::query()->where('is_active', true)->orderBy('name')->get();
     }
 
     /**
@@ -37,16 +48,25 @@ new #[Title('Finance')] class extends Component {
     {
         return Prospect::query()
             ->where('status', ProspectStatus::Enrolled)
-            ->with(['enrollment.payments', 'cohort'])
+            ->with(['enrollment.payments', 'cohort.program'])
+            ->when($this->programFilter, fn ($q) => $q->whereHas('cohort', fn ($cq) => $cq->where('program_id', $this->programFilter)))
             ->orderByDesc('updated_at')
             ->get();
     }
 }; ?>
 
 <div>
-    <div class="mb-6">
-        <flux:heading size="xl">{{ __('Finance') }}</flux:heading>
-        <flux:subheading>{{ __('Overview of enrollments and tuition payments.') }}</flux:subheading>
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <flux:heading size="xl">{{ __('Finance') }}</flux:heading>
+            <flux:subheading>{{ __('Overview of enrollments and tuition payments.') }}</flux:subheading>
+        </div>
+        <flux:select wire:model.live="programFilter" class="w-48">
+            <flux:select.option value="">{{ __('All Programs') }}</flux:select.option>
+            @foreach ($this->programs as $program)
+                <flux:select.option value="{{ $program->id }}">{{ $program->name }}</flux:select.option>
+            @endforeach
+        </flux:select>
     </div>
 
     {{-- Summary Cards --}}
@@ -75,7 +95,7 @@ new #[Title('Finance')] class extends Component {
             <thead class="bg-zinc-50 dark:bg-zinc-800">
                 <tr>
                     <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Prospect') }}</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Cohort') }}</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Program / Cohort') }}</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Tuition') }}</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Paid') }}</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">{{ __('Balance') }}</th>
@@ -93,7 +113,7 @@ new #[Title('Finance')] class extends Component {
                             </flux:text>
                         </td>
                         <td class="px-4 py-3">
-                            <flux:text class="text-sm">{{ $prospect->cohort?->name ?? '—' }}</flux:text>
+                            <flux:text class="text-sm">{{ $prospect->cohort ? $prospect->cohort->program->name.': '.$prospect->cohort->name : '—' }}</flux:text>
                         </td>
                         <td class="px-4 py-3">
                             <flux:text class="text-sm">{{ $prospect->enrollment?->amount_owed !== null ? '$'.number_format($prospect->enrollment->amount_owed, 2) : '—' }}</flux:text>
