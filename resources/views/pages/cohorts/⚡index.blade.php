@@ -31,6 +31,13 @@ new #[Title('Programs & Cohorts')] class extends Component {
         $this->authorize('delete', $cohort);
         $cohort->delete();
     }
+
+    public function deleteProgram(int $programId): void
+    {
+        $program = Program::findOrFail($programId);
+        $this->authorize('delete', $program);
+        $program->delete();
+    }
 }; ?>
 
 <div>
@@ -57,6 +64,9 @@ new #[Title('Programs & Cohorts')] class extends Component {
                     <flux:text class="text-sm text-zinc-500">{{ __('Default tuition: $:amount', ['amount' => number_format($program->default_tuition, 2)]) }}</flux:text>
                 @endif
                 <flux:button size="sm" :href="route('programs.edit', $program)" wire:navigate>{{ __('Edit') }}</flux:button>
+                @can('delete', $program)
+                    <flux:button size="sm" variant="danger" wire:click="deleteProgram({{ $program->id }})" wire:confirm="{{ __('Delete this program? This cannot be undone.') }}" :loading="false">{{ __('Delete') }}</flux:button>
+                @endcan
             </div>
             <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
                 <table class="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
