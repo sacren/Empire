@@ -86,7 +86,8 @@ test('enrolling sets prospect status to enrolled', function () {
         ->set('enrollCohortId', (string) $cohort->id)
         ->call('enroll');
 
-    expect($prospect->fresh()->status)->toBe(ProspectStatus::Enrolled);
+    expect($prospect->fresh()->status)->toBe(ProspectStatus::Enrolled)
+        ->and($prospect->fresh()->cohort_id)->toBe($cohort->id);
 });
 
 test('enrolling creates an enrollment record with correct cohort and pending status', function () {
