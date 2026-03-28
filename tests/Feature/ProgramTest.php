@@ -67,8 +67,9 @@ test('admin can delete a program without cohorts', function () {
     $program = Program::factory()->create();
 
     Livewire::actingAs($admin)
-        ->test('pages::programs.edit', ['program' => $program])
-        ->call('deleteProgram');
+        ->test('pages::cohorts.index')
+        ->assertSee('Delete')
+        ->call('deleteProgram', $program->id);
 
     expect(Program::find($program->id))->toBeNull();
 });
@@ -79,8 +80,8 @@ test('admin cannot delete a program with cohorts', function () {
     Cohort::factory()->for($program)->create();
 
     Livewire::actingAs($admin)
-        ->test('pages::programs.edit', ['program' => $program])
-        ->call('deleteProgram')
+        ->test('pages::cohorts.index')
+        ->call('deleteProgram', $program->id)
         ->assertForbidden();
 
     expect(Program::find($program->id))->not->toBeNull();
