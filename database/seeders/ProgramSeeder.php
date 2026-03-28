@@ -13,6 +13,7 @@ class ProgramSeeder extends Seeder
             'name' => 'SkillPath',
             'description' => 'A comprehensive trade skills program for career changers and first-time learners.',
             'is_active' => true,
+            'default_tuition' => 5000.00,
         ]);
     }
 }
