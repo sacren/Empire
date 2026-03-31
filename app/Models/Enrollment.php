@@ -86,11 +86,13 @@ class Enrollment extends Model
 
     public function recalculateStatus(): void
     {
+        $totalPaid = $this->totalPaid();
+
         if ($this->amount_owed === null) {
             $this->status = EnrollmentStatus::Pending;
-        } elseif ($this->totalPaid() >= (float) $this->amount_owed) {
+        } elseif ($totalPaid >= (float) $this->amount_owed) {
             $this->status = EnrollmentStatus::Paid;
-        } elseif ($this->totalPaid() > 0) {
+        } elseif ($totalPaid > 0) {
             $this->status = EnrollmentStatus::Partial;
         } else {
             $this->status = EnrollmentStatus::Pending;
