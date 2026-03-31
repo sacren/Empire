@@ -909,7 +909,7 @@ new #[Title('Prospect')] class extends Component {
                                             <flux:badge color="{{ $doc->type->color() }}" size="sm">{{ $doc->type->label() }}</flux:badge>
                                             <flux:badge color="{{ $doc->status->color() }}" size="sm">{{ $doc->status->label() }}</flux:badge>
                                         </div>
-                                        <flux:text class="text-xs text-zinc-400 mt-1">{{ $doc->uploadedBy->name }} · {{ $doc->created_at->format('M j, Y') }}</flux:text>
+                                        <flux:text class="text-xs text-zinc-400 mt-1">{{ $doc->uploadedBy?->name ?? __('Deleted user') }} · {{ $doc->created_at->format('M j, Y') }}</flux:text>
                                         @if ($doc->notes)
                                             <flux:text class="text-xs text-zinc-500 mt-1">{{ $doc->notes }}</flux:text>
                                         @endif
