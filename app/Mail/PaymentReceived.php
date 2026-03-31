@@ -33,6 +33,7 @@ class PaymentReceived extends Mailable implements ShouldQueue
     public function content(): Content
     {
         $enrollment = $this->payment->enrollment;
+        $balance = $enrollment->balance();
 
         return new Content(
             markdown: 'mail.payment-received',
@@ -41,7 +42,9 @@ class PaymentReceived extends Mailable implements ShouldQueue
                 'amount' => '$'.number_format($this->payment->amount, 2),
                 'method' => $this->payment->method->label(),
                 'paidAt' => $this->payment->paid_at->format('F j, Y'),
-                'remainingBalance' => '$'.number_format($enrollment->balance(), 2),
+                'remainingBalance' => $balance !== null
+                    ? '$'.number_format($balance, 2)
+                    : 'Not yet determined',
             ],
         );
     }
