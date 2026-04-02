@@ -3,58 +3,97 @@ name: tests
 on:
   push:
     branches:
-      - develop
-      - main
-      - master
-      - workos
-  pull_request:
-    branches:
-      - develop
-      - main
-      - master
-      - workos
+      - 12.x-livewire-8029
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-    environment: Testing
-    strategy:
-      matrix:
-        php-version: ['8.4', '8.5']
+
+    services:
+      pgsql:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: empire
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: empire
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -q -d empire -U empire"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: empire
+      DB_USERNAME: empire
+      DB_PASSWORD: secret
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-version }}
+          php-version: '8.5'
+          extensions: pdo_pgsql, redis
           tools: composer:v2
-          coverage: xdebug
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Install Node Dependencies
-        run: npm i
+      - name: Install pnpm
+        run: npm install -g pnpm
 
-      - name: Add Flux Credentials Loaded From ENV
-        run: composer config http-basic.composer.fluxui.dev "${{ secrets.FLUX_USERNAME }}" "${{ secrets.FLUX_LICENSE_KEY }}"
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-
 
-      - name: Install Dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Copy Environment File
+      - name: Copy environment file
         run: cp .env.example .env
 
-      - name: Generate Application Key
+      - name: Generate application key
         run: php artisan key:generate
 
-      - name: Build Assets
-        run: npm run build
+      - name: Build assets
+        run: pnpm run build
 
-      - name: Run Tests
-        run: ./vendor/bin/pest
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Run tests
+        run: php artisan test --compact
