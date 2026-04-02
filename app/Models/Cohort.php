@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\CohortFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Cohort extends Model
 {
-    /** @use HasFactory<\Database\Factories\CohortFactory> */
+    /** @use HasFactory<CohortFactory> */
     use HasFactory;
 
     protected $fillable = [

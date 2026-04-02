@@ -6,6 +6,7 @@ use App\Models\Cohort;
 use App\Models\Enrollment;
 use App\Models\Prospect;
 use App\Models\User;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
@@ -40,7 +41,7 @@ test('enrollment confirmed mailable shows "to be determined" when tuition is not
 
 test('enrollment confirmed mailable implements ShouldQueue', function () {
     expect(EnrollmentConfirmed::class)
-        ->toImplement(\Illuminate\Contracts\Queue\ShouldQueue::class);
+        ->toImplement(ShouldQueue::class);
 });
 
 test('enrolling a prospect queues the enrollment confirmed email', function () {

@@ -5,6 +5,7 @@ use App\Enums\ProspectStatus;
 use App\Mail\TuitionReminder;
 use App\Models\Enrollment;
 use App\Models\Prospect;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 
 test('sends reminder to enrollment with partial status', function () {
@@ -175,5 +176,5 @@ test('tuition reminder mailable has prospect_id metadata', function () {
 
 test('tuition reminder mailable implements ShouldQueue', function () {
     expect(TuitionReminder::class)
-        ->toImplement(\Illuminate\Contracts\Queue\ShouldQueue::class);
+        ->toImplement(ShouldQueue::class);
 });

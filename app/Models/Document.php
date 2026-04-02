@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DocumentStatus;
 use App\Enums\DocumentType;
+use Database\Factories\DocumentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 
 class Document extends Model
 {
-    /** @use HasFactory<\Database\Factories\DocumentFactory> */
+    /** @use HasFactory<DocumentFactory> */
     use HasFactory;
 
     protected $fillable = [

@@ -4,13 +4,14 @@ namespace App\Models;
 
 use App\Enums\CommunicationChannel;
 use App\Enums\CommunicationType;
+use Database\Factories\CommunicationLogFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CommunicationLog extends Model
 {
-    /** @use HasFactory<\Database\Factories\CommunicationLogFactory> */
+    /** @use HasFactory<CommunicationLogFactory> */
     use HasFactory;
 
     protected $fillable = [

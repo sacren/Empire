@@ -4,12 +4,13 @@ namespace Database\Factories;
 
 use App\Enums\DocumentStatus;
 use App\Enums\DocumentType;
+use App\Models\Document;
 use App\Models\Prospect;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Document>
+ * @extends Factory<Document>
  */
 class DocumentFactory extends Factory
 {
@@ -21,8 +22,8 @@ class DocumentFactory extends Factory
             'uploaded_by' => User::factory(),
             'type' => DocumentType::Other,
             'status' => DocumentStatus::Pending,
-            'original_filename' => fake()->word() . '.pdf',
-            'disk_path' => 'documents/' . fake()->uuid() . '.pdf',
+            'original_filename' => fake()->word().'.pdf',
+            'disk_path' => 'documents/'.fake()->uuid().'.pdf',
             'mime_type' => 'application/pdf',
             'file_size' => fake()->numberBetween(1024, 5242880),
             'notes' => null,

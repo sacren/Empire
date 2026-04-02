@@ -9,11 +9,12 @@ use App\Enums\EmploymentStatus;
 use App\Enums\ProspectEntryPoint;
 use App\Enums\ProspectStatus;
 use App\Models\Cohort;
+use App\Models\Prospect;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Prospect>
+ * @extends Factory<Prospect>
  */
 class ProspectFactory extends Factory
 {

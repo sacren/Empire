@@ -8,6 +8,7 @@ use App\Enums\EducationLevel;
 use App\Enums\EmploymentStatus;
 use App\Enums\ProspectEntryPoint;
 use App\Enums\ProspectStatus;
+use Database\Factories\ProspectFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Prospect extends Model
 {
-    /** @use HasFactory<\Database\Factories\ProspectFactory> */
+    /** @use HasFactory<ProspectFactory> */
     use HasFactory;
 
     protected $fillable = [

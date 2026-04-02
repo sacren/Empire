@@ -5,6 +5,7 @@ use App\Mail\PaymentReceived;
 use App\Models\Enrollment;
 use App\Models\Payment;
 use App\Models\Prospect;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 
 test('payment received mailable contains correct content', function () {
@@ -34,7 +35,7 @@ test('payment received mailable contains correct content', function () {
 
 test('payment received mailable implements ShouldQueue', function () {
     expect(PaymentReceived::class)
-        ->toImplement(\Illuminate\Contracts\Queue\ShouldQueue::class);
+        ->toImplement(ShouldQueue::class);
 });
 
 test('creating a payment queues the payment received email', function () {

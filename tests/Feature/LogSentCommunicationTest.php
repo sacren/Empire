@@ -5,9 +5,12 @@ use App\Enums\CommunicationType;
 use App\Listeners\LogSentCommunication;
 use App\Models\CommunicationLog;
 use App\Models\Prospect;
+use App\Models\User;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Mail\SentMessage;
+use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\Header\MetadataHeader;
+use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 
 function createMessageSentEvent(array $metadata = [], string $subject = 'Test Subject'): MessageSent
@@ -23,11 +26,11 @@ function createMessageSentEvent(array $metadata = [], string $subject = 'Test Su
     }
 
     $sentMessage = new SentMessage(
-        new \Symfony\Component\Mailer\SentMessage(
+        new Symfony\Component\Mailer\SentMessage(
             $email,
-            new \Symfony\Component\Mailer\Envelope(
-                new \Symfony\Component\Mime\Address('noreply@example.com'),
-                [new \Symfony\Component\Mime\Address('student@example.com')]
+            new Envelope(
+                new Address('noreply@example.com'),
+                [new Address('student@example.com')]
             )
         )
     );
@@ -82,7 +85,7 @@ test('listener ignores emails without prospect_id metadata', function () {
 
 test('listener uses sent_by from metadata when present', function () {
     $prospect = Prospect::factory()->create();
-    $user = \App\Models\User::factory()->staff()->create();
+    $user = User::factory()->staff()->create();
 
     $event = createMessageSentEvent(
         metadata: [

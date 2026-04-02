@@ -4,6 +4,7 @@ use App\Enums\CommunicationType;
 use App\Mail\SendProspectEmail;
 use App\Models\Prospect;
 use App\Models\User;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
@@ -96,7 +97,7 @@ test('it appends app name to subject', function () {
 
 test('it implements ShouldQueue', function () {
     expect(SendProspectEmail::class)
-        ->toImplement(\Illuminate\Contracts\Queue\ShouldQueue::class);
+        ->toImplement(ShouldQueue::class);
 });
 
 test('it requires authorization', function () {

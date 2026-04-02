@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -37,7 +38,7 @@ test('admin can create a staff member', function () {
     $user = User::where('email', 'jane@example.com')->first();
 
     expect($user)->not->toBeNull()
-        ->and($user->role)->toBe(\App\Enums\UserRole::Staff)
+        ->and($user->role)->toBe(UserRole::Staff)
         ->and($user->is_active)->toBeTrue();
 });
 
